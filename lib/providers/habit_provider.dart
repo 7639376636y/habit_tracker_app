@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/habit.dart';
+import '../models/layout_settings.dart';
 
 class HabitProvider extends ChangeNotifier {
   int _selectedYear = 2026;
   int _selectedMonth = 1; // January
   List<Habit> _habits = [];
+  LayoutSettings _layoutSettings = LayoutSettings.defaultSettings();
 
   HabitProvider() {
     _initializeDefaultHabits();
@@ -13,6 +15,46 @@ class HabitProvider extends ChangeNotifier {
   int get selectedYear => _selectedYear;
   int get selectedMonth => _selectedMonth;
   List<Habit> get habits => _habits;
+  LayoutSettings get layoutSettings => _layoutSettings;
+
+  // Layout Settings Methods
+  void updateLayoutSettings(LayoutSettings settings) {
+    _layoutSettings = settings;
+    notifyListeners();
+  }
+
+  void toggleSectionVisibility(LayoutSection section) {
+    final newVisibility = Map<LayoutSection, bool>.from(
+      _layoutSettings.visibleSections,
+    );
+    newVisibility[section] = !(newVisibility[section] ?? true);
+    _layoutSettings = _layoutSettings.copyWith(visibleSections: newVisibility);
+    notifyListeners();
+  }
+
+  void reorderSections(int oldIndex, int newIndex) {
+    final newOrder = List<LayoutSection>.from(_layoutSettings.sectionOrder);
+    if (newIndex > oldIndex) newIndex--;
+    final item = newOrder.removeAt(oldIndex);
+    newOrder.insert(newIndex, item);
+    _layoutSettings = _layoutSettings.copyWith(sectionOrder: newOrder);
+    notifyListeners();
+  }
+
+  void setDesktopColumns(int columns) {
+    _layoutSettings = _layoutSettings.copyWith(columnsDesktop: columns);
+    notifyListeners();
+  }
+
+  void setTabletColumns(int columns) {
+    _layoutSettings = _layoutSettings.copyWith(columnsTablet: columns);
+    notifyListeners();
+  }
+
+  void resetLayoutSettings() {
+    _layoutSettings = LayoutSettings.defaultSettings();
+    notifyListeners();
+  }
 
   void _initializeDefaultHabits() {
     _habits = [

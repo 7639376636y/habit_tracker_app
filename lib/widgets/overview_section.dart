@@ -33,12 +33,12 @@ class OverviewSection extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
@@ -46,195 +46,256 @@ class OverviewSection extends StatelessWidget {
             children: [
               // Header
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                   ),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                 ),
-                child: Row(
+                child: Column(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.dashboard_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.dashboard_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Weekly Overview',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Weekly Overview',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-                    const Spacer(),
-                    // Week indicators
-                    ...List.generate(weeks.length, (weekIndex) {
-                      final weekProgress = provider.weekProgress(
-                        weeks[weekIndex],
-                      );
-                      final pct = weekProgress['percentage'] as double;
+                    const SizedBox(height: 12),
+                    // Week indicators - scrollable
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: List.generate(weeks.length, (weekIndex) {
+                          final weekProgress = provider.weekProgress(
+                            weeks[weekIndex],
+                          );
+                          final pct = weekProgress['percentage'] as double;
 
-                      return Container(
-                        margin: const EdgeInsets.only(left: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          children: [
-                            Text(
-                              'W${weekIndex + 1}',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          return Container(
+                            margin: EdgeInsets.only(
+                              right: weekIndex < weeks.length - 1 ? 8 : 0,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${pct.toStringAsFixed(0)}%',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
                             ),
-                          ],
-                        ),
-                      );
-                    }),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'W${weekIndex + 1}',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${pct.toStringAsFixed(0)}%',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
                   ],
                 ),
               ),
-              // Progress cards
+              // Progress cards - scrollable for smaller screens
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: List.generate(weeks.length, (weekIndex) {
-                    final week = weeks[weekIndex];
-                    final weekProgress = provider.weekProgress(week);
-                    final pct = weekProgress['percentage'] as double;
-                    final weekColor = _getWeekColor(weekIndex);
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Use scrollable layout if space is limited
+                    final useScroll = constraints.maxWidth < weeks.length * 160;
 
-                    return Expanded(
-                      child: Container(
-                        margin: EdgeInsets.only(
-                          left: weekIndex == 0 ? 0 : 6,
-                          right: weekIndex == weeks.length - 1 ? 0 : 6,
-                        ),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: weekColor.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: weekColor.withValues(alpha: 0.2),
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Week ${weekIndex + 1}',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: weekColor,
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: weekColor,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    '${pct.toStringAsFixed(0)}%',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            // Progress bar
-                            Container(
-                              height: 8,
+                    if (useScroll) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: List.generate(weeks.length, (weekIndex) {
+                            final week = weeks[weekIndex];
+                            final weekProgress = provider.weekProgress(week);
+                            final pct = weekProgress['percentage'] as double;
+                            final weekColor = _getWeekColor(weekIndex);
+
+                            return Container(
+                              width: 140,
+                              margin: EdgeInsets.only(
+                                right: weekIndex < weeks.length - 1 ? 12 : 0,
+                              ),
+                              padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: weekColor.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: FractionallySizedBox(
-                                alignment: Alignment.centerLeft,
-                                widthFactor: pct / 100,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        weekColor,
-                                        weekColor.withValues(alpha: 0.8),
-                                      ],
-                                    ),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
+                                color: weekColor.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: weekColor.withValues(alpha: 0.2),
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                _buildWeekStat(
-                                  'Done',
-                                  '${weekProgress['completed']}',
-                                  const Color(0xFF10B981),
-                                ),
-                                _buildWeekStat(
-                                  'Left',
-                                  '${weekProgress['left']}',
-                                  const Color(0xFFF59E0B),
-                                ),
-                                _buildWeekStat(
-                                  'Goal',
-                                  '${weekProgress['goal']}',
-                                  const Color(0xFF6B7280),
-                                ),
-                              ],
-                            ),
-                          ],
+                              child: _buildWeekCardContent(
+                                weekIndex,
+                                weekProgress,
+                                pct,
+                                weekColor,
+                              ),
+                            );
+                          }),
                         ),
-                      ),
+                      );
+                    }
+
+                    return Row(
+                      children: List.generate(weeks.length, (weekIndex) {
+                        final week = weeks[weekIndex];
+                        final weekProgress = provider.weekProgress(week);
+                        final pct = weekProgress['percentage'] as double;
+                        final weekColor = _getWeekColor(weekIndex);
+
+                        return Expanded(
+                          child: Container(
+                            margin: EdgeInsets.only(
+                              left: weekIndex == 0 ? 0 : 6,
+                              right: weekIndex == weeks.length - 1 ? 0 : 6,
+                            ),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: weekColor.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: weekColor.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: _buildWeekCardContent(
+                              weekIndex,
+                              weekProgress,
+                              pct,
+                              weekColor,
+                            ),
+                          ),
+                        );
+                      }),
                     );
-                  }),
+                  },
                 ),
               ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildWeekCardContent(
+    int weekIndex,
+    Map<String, dynamic> weekProgress,
+    double pct,
+    Color weekColor,
+  ) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Flexible(
+              child: Text(
+                'W${weekIndex + 1}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: weekColor,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: weekColor,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${pct.toStringAsFixed(0)}%',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        // Progress bar
+        Container(
+          height: 6,
+          decoration: BoxDecoration(
+            color: weekColor.withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(3),
+          ),
+          child: FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: pct / 100,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [weekColor, weekColor.withValues(alpha: 0.8)],
+                ),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildWeekStat(
+              'Done',
+              '${weekProgress['completed']}',
+              const Color(0xFF10B981),
+            ),
+            _buildWeekStat(
+              'Left',
+              '${weekProgress['left']}',
+              const Color(0xFFF59E0B),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -245,12 +306,12 @@ class OverviewSection extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -259,27 +320,27 @@ class OverviewSection extends StatelessWidget {
           // Header
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
               ),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
                     Icons.dashboard_rounded,
                     color: Colors.white,
-                    size: 20,
+                    size: 18,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -287,8 +348,8 @@ class OverviewSection extends StatelessWidget {
                   'Weekly Overview',
                   style: TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
                   ),
                 ),
               ],

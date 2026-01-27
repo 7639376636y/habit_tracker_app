@@ -54,6 +54,9 @@ class HabitGrid extends StatelessWidget {
     List habits,
     List<List<DateTime>> weeks,
   ) {
+    // Calculate total days in month
+    final totalDays = weeks.fold<int>(0, (sum, week) => sum + week.length);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -107,162 +110,235 @@ class HabitGrid extends StatelessWidget {
               ],
             ),
           ),
-          // Scrollable Table
+          // Responsive Table
           if (habits.isEmpty)
             _buildEmptyState()
           else
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Table Header
-                  _buildTableHeader(weeks),
-                  const SizedBox(height: 8),
-                  // Table Body
-                  ...habits.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final habit = entry.value;
-                    return _buildHabitRow(provider, habit, index, weeks);
-                  }),
-                ],
-              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final availableWidth = constraints.maxWidth - 32; // padding
+                final indexWidth = 32.0;
+                final goalWidth = 40.0;
+                final habitNameWidth = availableWidth * 0.15; // 15% for name
+                // Account for week gaps: 2px gap between each week, plus 8px padding per week
+                final weekGaps = (weeks.length - 1) * 2.0;
+                final weekPadding = weeks.length * 8.0;
+                final daysWidth =
+                    availableWidth -
+                    indexWidth -
+                    goalWidth -
+                    habitNameWidth -
+                    16 -
+                    weekGaps -
+                    weekPadding;
+                final dayWidth = daysWidth / totalDays;
+
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Table Header
+                      _buildFlexibleTableHeader(
+                        weeks,
+                        indexWidth,
+                        habitNameWidth,
+                        goalWidth,
+                        dayWidth,
+                      ),
+                      const SizedBox(height: 8),
+                      // Table Body
+                      ...habits.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final habit = entry.value;
+                        return _buildFlexibleHabitRow(
+                          provider,
+                          habit,
+                          index,
+                          weeks,
+                          indexWidth,
+                          habitNameWidth,
+                          goalWidth,
+                          dayWidth,
+                        );
+                      }),
+                    ],
+                  ),
+                );
+              },
             ),
         ],
       ),
     );
   }
 
-  Widget _buildTableHeader(List<List<DateTime>> weeks) {
+  Widget _buildFlexibleTableHeader(
+    List<List<DateTime>> weeks,
+    double indexWidth,
+    double habitNameWidth,
+    double goalWidth,
+    double dayWidth,
+  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [
-          _buildHeaderCell('#', 40),
-          _buildHeaderCell('Habit', 150),
-          _buildHeaderCell('Goal', 60),
-          ...weeks.asMap().entries.map((entry) {
-            final weekIndex = entry.key;
-            final week = entry.value;
-            return Container(
-              width: week.length * 38.0,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              decoration: BoxDecoration(
-                color: _getWeekColor(weekIndex).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
+          SizedBox(
+            width: indexWidth,
+            child: const Center(
+              child: Text(
+                '#',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B),
+                ),
               ),
-              child: Column(
-                children: [
-                  Text(
-                    'Week ${weekIndex + 1}',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: _getWeekColor(weekIndex),
+            ),
+          ),
+          SizedBox(
+            width: habitNameWidth,
+            child: const Text(
+              'Habit',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF64748B),
+              ),
+            ),
+          ),
+          SizedBox(
+            width: goalWidth,
+            child: const Center(
+              child: Text(
+                'Goal',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: weeks.asMap().entries.map((weekEntry) {
+                final weekIndex = weekEntry.key;
+                final week = weekEntry.value;
+                final weekColor = _getWeekColor(weekIndex);
+                return Expanded(
+                  flex: week.length,
+                  child: Container(
+                    margin: EdgeInsets.only(left: weekIndex > 0 ? 2 : 0),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 2,
+                      horizontal: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: weekColor.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: weekColor.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'W${weekIndex + 1}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: weekColor,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: week.map((date) {
+                            final isToday = _isToday(date);
+                            return Expanded(
+                              child: Column(
+                                children: [
+                                  Text(
+                                    _getDayName(date.weekday).substring(0, 1),
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      color: Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 1),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 2,
+                                      vertical: 1,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isToday
+                                          ? const Color(0xFFFBBF24)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                    child: Text(
+                                      '${date.day}',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: isToday
+                                            ? Colors.black
+                                            : const Color(0xFF64748B),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: week.map((date) {
-                      final isToday = _isToday(date);
-                      return Container(
-                        width: 36,
-                        margin: const EdgeInsets.symmetric(horizontal: 1),
-                        child: Column(
-                          children: [
-                            Text(
-                              _getDayName(date.weekday),
-                              style: const TextStyle(
-                                fontSize: 9,
-                                color: Color(0xFF94A3B8),
-                              ),
-                            ),
-                            Container(
-                              margin: const EdgeInsets.only(top: 2),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isToday
-                                    ? const Color(0xFFFBBF24)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                '${date.day}',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: isToday
-                                      ? Colors.black
-                                      : const Color(0xFF64748B),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-            );
-          }),
+                );
+              }).toList(),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildHeaderCell(String text, double width) {
-    return SizedBox(
-      width: width,
-      child: Center(
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF64748B),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHabitRow(
+  Widget _buildFlexibleHabitRow(
     HabitProvider provider,
     dynamic habit,
     int index,
     List<List<DateTime>> weeks,
+    double indexWidth,
+    double habitNameWidth,
+    double goalWidth,
+    double dayWidth,
   ) {
     return Container(
-      margin: const EdgeInsets.only(top: 4),
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.only(top: 3),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
         color: index.isEven ? Colors.white : const Color(0xFFFAFAFA),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: const Color(0xFFF1F5F9)),
       ),
       child: Row(
         children: [
           // Index
           SizedBox(
-            width: 40,
+            width: indexWidth,
             child: Center(
               child: Container(
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
                   color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Center(
                   child: Text(
@@ -279,29 +355,26 @@ class HabitGrid extends StatelessWidget {
           ),
           // Name
           SizedBox(
-            width: 150,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Text(
-                habit.name,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF1F2937),
-                ),
-                overflow: TextOverflow.ellipsis,
+            width: habitNameWidth,
+            child: Text(
+              habit.name,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1F2937),
               ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           // Goal
           SizedBox(
-            width: 60,
+            width: goalWidth,
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
                   color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '${habit.goalDays}',
@@ -314,53 +387,73 @@ class HabitGrid extends StatelessWidget {
               ),
             ),
           ),
-          // Checkboxes
-          ...weeks.map((week) {
-            return Container(
-              width: week.length * 38.0,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: week.map((date) {
-                  final isCompleted = habit.isCompletedOn(date);
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 1),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => provider.toggleHabitDay(habit.id, date),
-                        borderRadius: BorderRadius.circular(6),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          width: 34,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            gradient: isCompleted
-                                ? const LinearGradient(
-                                    colors: [
-                                      Color(0xFF10B981),
-                                      Color(0xFF059669),
-                                    ],
-                                  )
-                                : null,
-                            color: isCompleted ? null : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: isCompleted
-                              ? const Icon(
-                                  Icons.check_rounded,
-                                  size: 16,
-                                  color: Colors.white,
-                                )
-                              : null,
-                        ),
-                      ),
+          // Day checkboxes grouped by week
+          Expanded(
+            child: Row(
+              children: weeks.asMap().entries.map((weekEntry) {
+                final weekIndex = weekEntry.key;
+                final week = weekEntry.value;
+                final weekColor = _getWeekColor(weekIndex);
+                return Expanded(
+                  flex: week.length,
+                  child: Container(
+                    margin: EdgeInsets.only(left: weekIndex > 0 ? 2 : 0),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 2,
+                      horizontal: 2,
                     ),
-                  );
-                }).toList(),
-              ),
-            );
-          }),
+                    decoration: BoxDecoration(
+                      color: weekColor.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      children: week.map((date) {
+                        final isCompleted = habit.isCompletedOn(date);
+                        return Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 1),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () =>
+                                    provider.toggleHabitDay(habit.id, date),
+                                borderRadius: BorderRadius.circular(6),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 150),
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    gradient: isCompleted
+                                        ? const LinearGradient(
+                                            colors: [
+                                              Color(0xFF10B981),
+                                              Color(0xFF059669),
+                                            ],
+                                          )
+                                        : null,
+                                    color: isCompleted
+                                        ? null
+                                        : const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: isCompleted
+                                      ? const Icon(
+                                          Icons.check_rounded,
+                                          size: 16,
+                                          color: Colors.white,
+                                        )
+                                      : null,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
         ],
       ),
     );
@@ -469,6 +562,9 @@ class HabitGrid extends StatelessWidget {
     int index,
     List<List<DateTime>> weeks,
   ) {
+    // Calculate total days
+    final totalDays = weeks.fold<int>(0, (sum, week) => sum + week.length);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
@@ -518,6 +614,7 @@ class HabitGrid extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF1F2937),
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       'Goal: ${habit.goalDays} • Done: ${habit.completedCount}',
@@ -532,97 +629,121 @@ class HabitGrid extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          // Weeks
-          ...weeks.asMap().entries.map((weekEntry) {
-            final weekIndex = weekEntry.key;
-            final week = weekEntry.value;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6, top: 4),
-                  child: Text(
-                    'Week ${weekIndex + 1}',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: _getWeekColor(weekIndex),
+          // All days grouped by week
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final availableWidth = constraints.maxWidth;
+              final weekGaps = (weeks.length - 1) * 4.0;
+              final daysWidth = availableWidth - weekGaps;
+              final dayWidth = daysWidth / totalDays;
+
+              return Row(
+                children: weeks.asMap().entries.map((weekEntry) {
+                  final weekIndex = weekEntry.key;
+                  final week = weekEntry.value;
+                  final weekColor = _getWeekColor(weekIndex);
+                  return Container(
+                    width:
+                        week.length * dayWidth +
+                        (weekIndex < weeks.length - 1 ? 4 : 0),
+                    padding: EdgeInsets.only(
+                      right: weekIndex < weeks.length - 1 ? 4 : 0,
                     ),
-                  ),
-                ),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: week.map((date) {
-                    final isCompleted = habit.isCompletedOn(date);
-                    final isToday = _isToday(date);
-                    return GestureDetector(
-                      onTap: () => provider.toggleHabitDay(habit.id, date),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        width: 38,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          gradient: isCompleted
-                              ? const LinearGradient(
-                                  colors: [
-                                    Color(0xFF10B981),
-                                    Color(0xFF059669),
-                                  ],
-                                )
-                              : null,
-                          color: isCompleted
-                              ? null
-                              : isToday
-                              ? const Color(0xFFFEF3C7)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isToday
-                                ? const Color(0xFFFBBF24)
-                                : const Color(0xFFE5E7EB),
-                            width: isToday ? 2 : 1,
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              _getDayName(date.weekday).substring(0, 1),
-                              style: TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.w500,
-                                color: isCompleted
-                                    ? Colors.white.withValues(alpha: 0.8)
-                                    : const Color(0xFF94A3B8),
-                              ),
-                            ),
-                            isCompleted
-                                ? const Icon(
-                                    Icons.check_rounded,
-                                    size: 14,
-                                    color: Colors.white,
-                                  )
-                                : Text(
-                                    '${date.day}',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: isToday
-                                          ? const Color(0xFFD97706)
-                                          : const Color(0xFF1F2937),
-                                    ),
-                                  ),
-                          ],
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: weekColor.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: weekColor.withValues(alpha: 0.2),
                         ),
                       ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 4),
-              ],
-            );
-          }),
+                      child: Column(
+                        children: [
+                          Text(
+                            'W${weekIndex + 1}',
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.w700,
+                              color: weekColor,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: week.map((date) {
+                              final isCompleted = habit.isCompletedOn(date);
+                              final isToday = _isToday(date);
+                              return SizedBox(
+                                width: dayWidth,
+                                child: GestureDetector(
+                                  onTap: () =>
+                                      provider.toggleHabitDay(habit.id, date),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 150),
+                                    height: 28,
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 1,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: isCompleted
+                                          ? const LinearGradient(
+                                              colors: [
+                                                Color(0xFF10B981),
+                                                Color(0xFF059669),
+                                              ],
+                                            )
+                                          : null,
+                                      color: isCompleted
+                                          ? null
+                                          : isToday
+                                          ? const Color(0xFFFEF3C7)
+                                          : Colors.white,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: isToday
+                                            ? const Color(0xFFFBBF24)
+                                            : const Color(0xFFE5E7EB),
+                                        width: isToday ? 2 : 1,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        if (dayWidth > 18)
+                                          Text(
+                                            '${date.day}',
+                                            style: TextStyle(
+                                              fontSize: dayWidth > 25 ? 9 : 7,
+                                              fontWeight: FontWeight.w600,
+                                              color: isCompleted
+                                                  ? Colors.white
+                                                  : isToday
+                                                  ? const Color(0xFFD97706)
+                                                  : const Color(0xFF1F2937),
+                                            ),
+                                          )
+                                        else if (isCompleted)
+                                          const Icon(
+                                            Icons.check_rounded,
+                                            size: 14,
+                                            color: Colors.white,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
         ],
       ),
     );

@@ -15,123 +15,126 @@ class ProgressChart extends StatelessWidget {
             : data.reduce((a, b) => a > b ? a : b);
         final chartMax = maxValue < 20 ? 20.0 : maxValue + 5;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+        return SizedBox(
+          height: 300,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                    ),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
                   ),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.show_chart_rounded,
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Daily Progress',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Chart
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: SizedBox(
-                  height: 180,
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      // Y-axis labels
-                      SizedBox(
-                        width: 32,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            _buildAxisLabel('${chartMax.toInt()}%'),
-                            _buildAxisLabel('${(chartMax * 0.5).toInt()}%'),
-                            _buildAxisLabel('0%'),
-                          ],
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.show_chart_rounded,
+                          color: Colors.white,
+                          size: 18,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      // Chart area
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: CustomPaint(
-                            painter: _LineChartPainter(data, chartMax),
-                            size: Size.infinite,
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Daily Progress',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
-              // X-axis labels
-              Padding(
-                padding: const EdgeInsets.fromLTRB(48, 0, 16, 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: List.generate(
-                    data.length > 7 ? 7 : (data.isEmpty ? 1 : data.length),
-                    (index) {
-                      if (data.isEmpty) return const Text('');
-                      final dayIndex = data.length > 7
-                          ? (data.length / 6 * index).floor()
-                          : index;
-                      return Text(
-                        '${dayIndex + 1}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Color(0xFF94A3B8),
-                          fontWeight: FontWeight.w500,
+                // Chart
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // Y-axis labels
+                        SizedBox(
+                          width: 32,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              _buildAxisLabel('${chartMax.toInt()}%'),
+                              _buildAxisLabel('${(chartMax * 0.5).toInt()}%'),
+                              _buildAxisLabel('0%'),
+                            ],
+                          ),
                         ),
-                      );
-                    },
+                        const SizedBox(width: 8),
+                        // Chart area
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: CustomPaint(
+                              painter: _LineChartPainter(data, chartMax),
+                              size: Size.infinite,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+                // X-axis labels
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(48, 0, 16, 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(
+                      data.length > 7 ? 7 : (data.isEmpty ? 1 : data.length),
+                      (index) {
+                        if (data.isEmpty) return const Text('');
+                        final dayIndex = data.length > 7
+                            ? (data.length / 6 * index).floor()
+                            : index;
+                        return Text(
+                          '${dayIndex + 1}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF94A3B8),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -142,7 +145,7 @@ class ProgressChart extends StatelessWidget {
     return Text(
       text,
       style: const TextStyle(
-        fontSize: 9,
+        fontSize: 12,
         color: Color(0xFF94A3B8),
         fontWeight: FontWeight.w500,
       ),

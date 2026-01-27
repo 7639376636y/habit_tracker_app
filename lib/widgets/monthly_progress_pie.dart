@@ -13,108 +13,115 @@ class MonthlyProgressPie extends StatelessWidget {
         final progress = provider.monthlyProgress;
         final percentage = progress['percentage'] as double;
 
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                  ),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        return SizedBox(
+          height: 300,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.pie_chart_rounded,
-                        color: Colors.white,
-                        size: 18,
-                      ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
                     ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Monthly Progress',
-                        style: TextStyle(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.pie_chart_rounded,
                           color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
+                          size: 18,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Monthly Progress',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              // Content
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    // Pie Chart
-                    SizedBox(
-                      width: 100,
-                      height: 100,
-                      child: CustomPaint(
-                        painter: _PieChartPainter(percentage),
-                        child: Center(
-                          child: Text(
-                            '${percentage.toStringAsFixed(0)}%',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E293B),
+                // Content
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        // Pie Chart
+                        SizedBox(
+                          width: 160,
+                          height: 160,
+                          child: CustomPaint(
+                            painter: _PieChartPainter(percentage),
+                            child: Center(
+                              child: Text(
+                                '${percentage.toStringAsFixed(0)}%',
+                                style: const TextStyle(
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1E293B),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    // Stats
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildStatRow(
-                            'Completed',
-                            '${percentage.toStringAsFixed(0)}%',
-                            const Color(0xFF10B981),
+                        const SizedBox(width: 20),
+                        // Stats
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildStatRow(
+                                'Completed',
+                                '${percentage.toStringAsFixed(0)}%',
+                                const Color(0xFF10B981),
+                              ),
+                              const SizedBox(height: 12),
+                              _buildStatRow(
+                                'Remaining',
+                                '${(100 - percentage).toStringAsFixed(0)}%',
+                                const Color(0xFFF59E0B),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 12),
-                          _buildStatRow(
-                            'Remaining',
-                            '${(100 - percentage).toStringAsFixed(0)}%',
-                            const Color(0xFFF59E0B),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -125,21 +132,21 @@ class MonthlyProgressPie extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 10,
-          height: 10,
+          width: 14,
+          height: 14,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.circular(4),
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               label,
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 14,
                 color: Color(0xFF64748B),
                 fontWeight: FontWeight.w500,
               ),
@@ -147,7 +154,7 @@ class MonthlyProgressPie extends StatelessWidget {
             Text(
               value,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/layout_settings.dart';
 import '../providers/habit_provider.dart';
 import '../widgets/calendar_settings.dart';
 import '../widgets/overview_section.dart';
@@ -8,9 +9,66 @@ import '../widgets/progress_chart.dart';
 import '../widgets/monthly_progress_pie.dart';
 import '../widgets/top_habits_widget.dart';
 import '../widgets/overall_progress_widget.dart';
+import '../widgets/layout_customizer.dart';
 
-class HabitTrackerScreen extends StatelessWidget {
+class HabitTrackerScreen extends StatefulWidget {
   const HabitTrackerScreen({super.key});
+
+  @override
+  State<HabitTrackerScreen> createState() => _HabitTrackerScreenState();
+}
+
+class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
+  bool _isEditMode = false;
+  int? _draggedIndex;
+
+  Widget _getSectionWidget(LayoutSection section) {
+    switch (section) {
+      case LayoutSection.calendar:
+        return const CalendarSettings();
+      case LayoutSection.monthlyProgress:
+        return const MonthlyProgressPie();
+      case LayoutSection.progressChart:
+        return const ProgressChart();
+      case LayoutSection.topHabits:
+        return const TopHabitsWidget();
+      case LayoutSection.overallProgress:
+        return const OverallProgressWidget();
+      case LayoutSection.overview:
+        return const OverviewSection();
+      case LayoutSection.habitGrid:
+        return const HabitGrid();
+    }
+  }
+
+  // Get preferred width for each section based on content type
+  double _getSectionWidth(
+    LayoutSection section,
+    double screenWidth,
+    bool isDesktop,
+    bool isTablet,
+  ) {
+    final maxWidth = screenWidth - (isDesktop ? 64 : 32);
+
+    // Small widgets that should be compact
+    if (section == LayoutSection.calendar ||
+        section == LayoutSection.monthlyProgress ||
+        section == LayoutSection.topHabits ||
+        section == LayoutSection.overallProgress) {
+      if (isDesktop) return (maxWidth - 32) / 3; // 3 columns
+      if (isTablet) return (maxWidth - 16) / 2; // 2 columns
+      return maxWidth; // Full width on mobile
+    }
+
+    // Medium widgets - Progress Chart takes 2 column spaces
+    if (section == LayoutSection.progressChart) {
+      if (isDesktop) return ((maxWidth - 32) / 3) * 2 + 16; // 2 columns width
+      return maxWidth;
+    }
+
+    // Large widgets - always full width
+    return maxWidth;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -96,6 +154,8 @@ class HabitTrackerScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
+                            _buildLayoutButton(context),
+                            const SizedBox(width: 12),
                             _buildAddButton(context, provider, isDesktop),
                           ],
                         ),
@@ -111,16 +171,333 @@ class HabitTrackerScreen extends StatelessWidget {
                   vertical: 16,
                 ),
                 sliver: SliverToBoxAdapter(
-                  child: isDesktop
-                      ? _buildDesktopLayout(context, provider)
-                      : isTablet
-                      ? _buildTabletLayout(context, provider)
-                      : _buildMobileLayout(context, provider),
+                  child: _buildCustomLayout(
+                    context,
+                    provider,
+                    isDesktop,
+                    isTablet,
+                  ),
                 ),
               ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildLayoutButton(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Edit mode toggle
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              setState(() {
+                _isEditMode = !_isEditMode;
+              });
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _isEditMode
+                    ? const Color(0xFF6366F1).withValues(alpha: 0.1)
+                    : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
+                border: _isEditMode
+                    ? Border.all(color: const Color(0xFF6366F1), width: 2)
+                    : null,
+              ),
+              child: Icon(
+                _isEditMode ? Icons.done_rounded : Icons.open_with_rounded,
+                color: _isEditMode
+                    ? const Color(0xFF6366F1)
+                    : const Color(0xFF64748B),
+                size: 20,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Settings button
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _showLayoutCustomizer(context),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.dashboard_customize_rounded,
+                color: Color(0xFF64748B),
+                size: 20,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showLayoutCustomizer(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.5,
+        maxChildSize: 0.9,
+        builder: (context, scrollController) =>
+            LayoutCustomizer(scrollController: scrollController),
+      ),
+    );
+  }
+
+  Widget _buildCustomLayout(
+    BuildContext context,
+    HabitProvider provider,
+    bool isDesktop,
+    bool isTablet,
+  ) {
+    final settings = provider.layoutSettings;
+    final visibleSections = settings.visibleOrderedSections;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    if (visibleSections.isEmpty) {
+      return _buildEmptyLayoutState(context);
+    }
+
+    // Use Wrap for flexible flow layout
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: visibleSections.asMap().entries.map((entry) {
+        final index = entry.key;
+        final section = entry.value;
+        final width = _getSectionWidth(
+          section,
+          screenWidth,
+          isDesktop,
+          isTablet,
+        );
+
+        return _buildDraggableSection(
+          context,
+          provider,
+          section,
+          index,
+          width,
+          visibleSections.length,
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildDraggableSection(
+    BuildContext context,
+    HabitProvider provider,
+    LayoutSection section,
+    int index,
+    double width,
+    int totalCount,
+  ) {
+    final isDragging = _draggedIndex == index;
+
+    return LongPressDraggable<int>(
+      data: index,
+      delay: _isEditMode ? Duration.zero : const Duration(milliseconds: 300),
+      feedback: Material(
+        elevation: 8,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: width,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Opacity(opacity: 0.9, child: _getSectionWidget(section)),
+        ),
+      ),
+      childWhenDragging: Container(
+        width: width,
+        height: 100,
+        decoration: BoxDecoration(
+          color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+            width: 2,
+            strokeAlign: BorderSide.strokeAlignCenter,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.drag_indicator_rounded,
+                color: const Color(0xFF6366F1).withValues(alpha: 0.5),
+                size: 32,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                LayoutSettings.getSectionName(section),
+                style: TextStyle(
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.7),
+                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      onDragStarted: () {
+        setState(() {
+          _draggedIndex = index;
+        });
+      },
+      onDragEnd: (details) {
+        setState(() {
+          _draggedIndex = null;
+        });
+      },
+      child: DragTarget<int>(
+        onWillAcceptWithDetails: (details) => details.data != index,
+        onAcceptWithDetails: (details) {
+          final oldIndex = details.data;
+          provider.reorderSections(oldIndex, index);
+        },
+        builder: (context, candidateData, rejectedData) {
+          final isDropTarget = candidateData.isNotEmpty;
+
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: width,
+            decoration: isDropTarget
+                ? BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF6366F1),
+                      width: 2,
+                    ),
+                  )
+                : null,
+            child: Stack(
+              children: [
+                AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: isDragging ? 0.3 : 1.0,
+                  child: _getSectionWidget(section),
+                ),
+                // Edit mode overlay
+                if (_isEditMode)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6366F1),
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(14),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.drag_indicator_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Drag to move',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyLayoutState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          children: [
+            Icon(
+              Icons.visibility_off_rounded,
+              size: 64,
+              color: Colors.grey.shade300,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'All sections are hidden',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Tap the customize button to show sections',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 20),
+            TextButton.icon(
+              onPressed: () => _showLayoutCustomizer(context),
+              icon: const Icon(Icons.dashboard_customize_rounded),
+              label: const Text('Customize Layout'),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF6366F1),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -172,109 +549,6 @@ class HabitTrackerScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildDesktopLayout(BuildContext context, HabitProvider provider) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Stats Row
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                flex: 1,
-                child: Column(
-                  children: [
-                    const Expanded(child: CalendarSettings()),
-                    const SizedBox(height: 16),
-                    const Expanded(child: MonthlyProgressPie()),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              const Expanded(flex: 2, child: ProgressChart()),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 1,
-                child: Column(
-                  children: const [
-                    Expanded(child: TopHabitsWidget()),
-                    SizedBox(height: 16),
-                    Expanded(child: OverallProgressWidget()),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        // Overview Section
-        const OverviewSection(),
-        const SizedBox(height: 24),
-        // Habit Grid
-        const HabitGrid(),
-        const SizedBox(height: 32),
-      ],
-    );
-  }
-
-  Widget _buildTabletLayout(BuildContext context, HabitProvider provider) {
-    return Column(
-      children: [
-        // First row
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: const [
-              Expanded(child: CalendarSettings()),
-              SizedBox(width: 16),
-              Expanded(child: MonthlyProgressPie()),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        const ProgressChart(),
-        const SizedBox(height: 16),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: const [
-              Expanded(child: TopHabitsWidget()),
-              SizedBox(width: 16),
-              Expanded(child: OverallProgressWidget()),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        const OverviewSection(),
-        const SizedBox(height: 16),
-        const HabitGrid(),
-        const SizedBox(height: 32),
-      ],
-    );
-  }
-
-  Widget _buildMobileLayout(BuildContext context, HabitProvider provider) {
-    return Column(
-      children: const [
-        CalendarSettings(),
-        SizedBox(height: 16),
-        MonthlyProgressPie(),
-        SizedBox(height: 16),
-        ProgressChart(),
-        SizedBox(height: 16),
-        OverviewSection(),
-        SizedBox(height: 16),
-        HabitGrid(),
-        SizedBox(height: 16),
-        TopHabitsWidget(),
-        SizedBox(height: 16),
-        OverallProgressWidget(),
-        SizedBox(height: 32),
-      ],
     );
   }
 
