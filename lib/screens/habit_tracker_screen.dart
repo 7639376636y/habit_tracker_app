@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/layout_settings.dart';
 import '../providers/habit_provider.dart';
+import '../providers/auth_provider.dart';
 import '../widgets/calendar_settings.dart';
 import '../widgets/overview_section.dart';
 import '../widgets/habit_grid.dart';
@@ -157,6 +158,8 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
                             _buildLayoutButton(context),
                             const SizedBox(width: 12),
                             _buildAddButton(context, provider, isDesktop),
+                            const SizedBox(width: 12),
+                            _buildLogoutButton(context),
                           ],
                         ),
                       ),
@@ -498,6 +501,55 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLogoutButton(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showLogoutConfirmation(context),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(
+            Icons.logout_rounded,
+            color: Color(0xFF64748B),
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showLogoutConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sign Out'),
+        content: const Text('Are you sure you want to sign out?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Reset habit provider
+              context.read<HabitProvider>().reset();
+              // Sign out
+              context.read<AuthProvider>().signOut();
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Sign Out'),
+          ),
+        ],
       ),
     );
   }

@@ -1,10 +1,12 @@
 class Habit {
-  final int id;
+  final String? mongoId; // MongoDB ObjectId
+  final int id; // Local int id for UI
   final String name;
   final int goalDays;
   final Map<DateTime, bool> completedDays;
 
   Habit({
+    this.mongoId,
     required this.id,
     required this.name,
     required this.goalDays,
@@ -22,12 +24,14 @@ class Habit {
   }
 
   Habit copyWith({
+    String? mongoId,
     int? id,
     String? name,
     int? goalDays,
     Map<DateTime, bool>? completedDays,
   }) {
     return Habit(
+      mongoId: mongoId ?? this.mongoId,
       id: id ?? this.id,
       name: name ?? this.name,
       goalDays: goalDays ?? this.goalDays,
@@ -41,5 +45,48 @@ class Habit {
     newCompletedDays[normalizedDate] =
         !(newCompletedDays[normalizedDate] ?? false);
     return copyWith(completedDays: newCompletedDays);
+  }
+
+  // JSON serialization for API
+  factory Habit.fromJson(Map<String, dynamic> json) {
+    final completedDaysJson =
+        json['completedDays'] as Map<String, dynamic>? ?? {};
+    final completedDays = <DateTime, bool>{};
+
+    completedDaysJson.forEach((key, value) {
+      final parts = key.split('-');
+      if (parts.length == 3) {
+        final date = DateTime(
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+          int.parse(parts[2]),
+        );
+        completedDays[date] = value as bool;
+      }
+    });
+
+    return Habit(
+      mongoId: json['id']?.toString(),
+      id: json['id'].hashCode,
+      name: json['name'],
+      goalDays: json['goalDays'],
+      completedDays: completedDays,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    final completedDaysMap = <String, bool>{};
+    completedDays.forEach((date, value) {
+      final dateString =
+          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      completedDaysMap[dateString] = value;
+    });
+
+    return {
+      if (mongoId != null) 'id': mongoId,
+      'name': name,
+      'goalDays': goalDays,
+      'completedDays': completedDaysMap,
+    };
   }
 }

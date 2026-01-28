@@ -1,21 +1,106 @@
 import 'package:flutter/material.dart';
 import '../models/habit.dart';
 import '../models/layout_settings.dart';
+import '../services/habit_service.dart';
 
 class HabitProvider extends ChangeNotifier {
+  final HabitService _habitService = HabitService();
+
   int _selectedYear = 2026;
   int _selectedMonth = 1; // January
   List<Habit> _habits = [];
   LayoutSettings _layoutSettings = LayoutSettings.defaultSettings();
+  bool _isLoading = false;
+  bool _isInitialized = false;
 
-  HabitProvider() {
-    _initializeDefaultHabits();
-  }
+  HabitProvider();
 
   int get selectedYear => _selectedYear;
   int get selectedMonth => _selectedMonth;
   List<Habit> get habits => _habits;
   LayoutSettings get layoutSettings => _layoutSettings;
+  bool get isLoading => _isLoading;
+  bool get isInitialized => _isInitialized;
+
+  // Initialize and load habits from backend
+  Future<void> initialize() async {
+    if (_isInitialized) return;
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      _habits = await _habitService.getHabits();
+      if (_habits.isEmpty) {
+        // If no habits from backend, create default habits
+        await _createDefaultHabits();
+      }
+      _isInitialized = true;
+    } catch (e) {
+      debugPrint('Error initializing habits: $e');
+      _initializeDefaultHabitsLocal();
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  // Create default habits on backend
+  Future<void> _createDefaultHabits() async {
+    final defaultHabits = [
+      {'name': 'Prayer x5', 'goalDays': 30},
+      {'name': 'Morning food take Fruits', 'goalDays': 30},
+      {'name': 'Nuts & Dry Fruits (Limits)', 'goalDays': 30},
+      {'name': 'Running', 'goalDays': 30},
+      {'name': '10000+ Steps', 'goalDays': 30},
+      {'name': 'Chicken without Oil', 'goalDays': 30},
+      {'name': '11 PM Sleep', 'goalDays': 30},
+      {'name': 'Wake-up 7 AM', 'goalDays': 30},
+      {'name': 'Any Hard Workout', 'goalDays': 30},
+      {'name': 'No - Sugar', 'goalDays': 30},
+      {'name': 'No - Junk food / Fast Food', 'goalDays': 30},
+      {'name': 'No - Snacks', 'goalDays': 30},
+      {'name': 'No - M&M', 'goalDays': 26},
+    ];
+
+    for (final habitData in defaultHabits) {
+      final habit = await _habitService.createHabit(
+        habitData['name'] as String,
+        habitData['goalDays'] as int,
+      );
+      if (habit != null) {
+        _habits.add(habit);
+      }
+    }
+  }
+
+  // Fallback to local habits if backend fails
+  void _initializeDefaultHabitsLocal() {
+    _habits = [
+      Habit(id: 1, name: 'Prayer x5', goalDays: 30),
+      Habit(id: 2, name: 'Morning food take Fruits', goalDays: 30),
+      Habit(id: 3, name: 'Nuts & Dry Fruits (Limits)', goalDays: 30),
+      Habit(id: 4, name: 'Running', goalDays: 30),
+      Habit(id: 5, name: '10000+ Steps', goalDays: 30),
+      Habit(id: 6, name: 'Chicken without Oil', goalDays: 30),
+      Habit(id: 7, name: '11 PM Sleep', goalDays: 30),
+      Habit(id: 8, name: 'Wake-up 7 AM', goalDays: 30),
+      Habit(id: 9, name: 'Any Hard Workout', goalDays: 30),
+      Habit(id: 10, name: 'No - Sugar', goalDays: 30),
+      Habit(id: 11, name: 'No - Junk food / Fast Food', goalDays: 30),
+      Habit(id: 12, name: 'No - Snacks', goalDays: 30),
+      Habit(id: 13, name: 'No - M&M', goalDays: 26),
+    ];
+    _isInitialized = true;
+  }
+
+  // Reset when user logs out
+  void reset() {
+    _habits = [];
+    _isInitialized = false;
+    _layoutSettings = LayoutSettings.defaultSettings();
+    notifyListeners();
+  }
 
   // Layout Settings Methods
   void updateLayoutSettings(LayoutSettings settings) {
@@ -56,24 +141,6 @@ class HabitProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _initializeDefaultHabits() {
-    _habits = [
-      Habit(id: 1, name: 'Prayer x5', goalDays: 30),
-      Habit(id: 2, name: 'Morning food take Fruits', goalDays: 30),
-      Habit(id: 3, name: 'Nuts & Dry Fruits (Limits)', goalDays: 30),
-      Habit(id: 4, name: 'Running', goalDays: 30),
-      Habit(id: 5, name: '10000+ Steps', goalDays: 30),
-      Habit(id: 6, name: 'Chicken without Oil', goalDays: 30),
-      Habit(id: 7, name: '11 PM Sleep', goalDays: 30),
-      Habit(id: 8, name: 'Wake-up 7 AM', goalDays: 30),
-      Habit(id: 9, name: 'Any Hard Workout', goalDays: 30),
-      Habit(id: 10, name: 'No - Sugar', goalDays: 30),
-      Habit(id: 11, name: 'No - Junk food / Fast Food', goalDays: 30),
-      Habit(id: 12, name: 'No - Snacks', goalDays: 30),
-      Habit(id: 13, name: 'No - M&M', goalDays: 26),
-    ];
-  }
-
   void setYear(int year) {
     _selectedYear = year;
     notifyListeners();
@@ -84,32 +151,74 @@ class HabitProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleHabitDay(int habitId, DateTime date) {
+  Future<void> toggleHabitDay(int habitId, DateTime date) async {
     final index = _habits.indexWhere((h) => h.id == habitId);
     if (index != -1) {
-      _habits[index] = _habits[index].toggleDay(date);
+      final habit = _habits[index];
+
+      // Optimistically update UI
+      _habits[index] = habit.toggleDay(date);
       notifyListeners();
+
+      // Sync with backend if we have a mongoId
+      if (habit.mongoId != null) {
+        final updatedHabit = await _habitService.toggleDay(
+          habit.mongoId!,
+          date,
+        );
+        if (updatedHabit != null) {
+          _habits[index] = updatedHabit;
+          notifyListeners();
+        }
+      }
     }
   }
 
-  void addHabit(String name, int goalDays) {
-    final newId = _habits.isEmpty
-        ? 1
-        : _habits.map((h) => h.id).reduce((a, b) => a > b ? a : b) + 1;
-    _habits.add(Habit(id: newId, name: name, goalDays: goalDays));
+  Future<void> addHabit(String name, int goalDays) async {
+    // Create on backend
+    final habit = await _habitService.createHabit(name, goalDays);
+    if (habit != null) {
+      _habits.add(habit);
+    } else {
+      // Fallback to local
+      final newId = _habits.isEmpty
+          ? 1
+          : _habits.map((h) => h.id).reduce((a, b) => a > b ? a : b) + 1;
+      _habits.add(Habit(id: newId, name: name, goalDays: goalDays));
+    }
     notifyListeners();
   }
 
-  void removeHabit(int habitId) {
+  Future<void> removeHabit(int habitId) async {
+    final habit = _habits.firstWhere(
+      (h) => h.id == habitId,
+      orElse: () => Habit(id: -1, name: '', goalDays: 0),
+    );
+    if (habit.id == -1) return;
+
+    // Optimistically update UI
     _habits.removeWhere((h) => h.id == habitId);
     notifyListeners();
+
+    // Delete from backend
+    if (habit.mongoId != null) {
+      await _habitService.deleteHabit(habit.mongoId!);
+    }
   }
 
-  void updateHabit(int habitId, String name, int goalDays) {
+  Future<void> updateHabit(int habitId, String name, int goalDays) async {
     final index = _habits.indexWhere((h) => h.id == habitId);
     if (index != -1) {
-      _habits[index] = _habits[index].copyWith(name: name, goalDays: goalDays);
+      final habit = _habits[index];
+
+      // Optimistically update UI
+      _habits[index] = habit.copyWith(name: name, goalDays: goalDays);
       notifyListeners();
+
+      // Sync with backend
+      if (habit.mongoId != null) {
+        await _habitService.updateHabit(habit.mongoId!, name, goalDays);
+      }
     }
   }
 
