@@ -86,11 +86,18 @@ const habitSchema = new mongoose.Schema(
       default: "check_circle",
     },
 
-    // Tracking data
+    // Tracking data - DEPRECATED: Use HabitCompletion collection instead
+    // Kept for backwards compatibility during migration
     completedDays: {
       type: Map,
       of: Boolean,
       default: () => new Map(),
+    },
+
+    // Flag to indicate if completions have been migrated to separate collection
+    completionsMigrated: {
+      type: Boolean,
+      default: false,
     },
 
     // Streak tracking

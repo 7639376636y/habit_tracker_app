@@ -1,5 +1,6 @@
 import express from "express";
 import Habit, { HABIT_CATEGORIES, FREQUENCY_TYPES } from "../models/Habit.js";
+import HabitCompletion from "../models/HabitCompletion.js";
 import LayoutSettings from "../models/LayoutSettings.js";
 import User from "../models/User.js";
 import auth from "../middleware/auth.js";
@@ -9,7 +10,63 @@ const router = express.Router();
 // All routes require authentication
 router.use(auth);
 
-// Helper to transform habit for response
+// Helper to get completed days from HabitCompletion collection
+const getCompletedDays = async (habitId) => {
+  const completions = await HabitCompletion.find({
+    habitId,
+    completed: true,
+  })
+    .select("date")
+    .lean();
+
+  const map = {};
+  completions.forEach((c) => {
+    map[c.date] = true;
+  });
+  return map;
+};
+
+// Helper to transform habit for response (async version)
+const transformHabitAsync = async (habit) => {
+  // Get completions from separate collection
+  const completedDays = await getCompletedDays(habit._id);
+
+  return {
+    id: habit._id.toString(),
+    name: habit.name,
+    description: habit.description || "",
+    category: habit.category,
+    color: habit.color,
+    icon: habit.icon || "",
+    goalDays: habit.goalDays,
+    completedDays,
+    frequency: {
+      type: habit.frequency?.type || "daily",
+      daysOfWeek: habit.frequency?.daysOfWeek || [],
+      timesPerWeek: habit.frequency?.timesPerWeek || 7,
+    },
+    reminder: habit.reminder
+      ? {
+          enabled: habit.reminder.enabled,
+          time: habit.reminder.time,
+          days: habit.reminder.days || [],
+        }
+      : { enabled: false, time: "09:00", days: [] },
+    streak: {
+      current: habit.streaks?.current || 0,
+      longest: habit.streaks?.longest || 0,
+      lastCompletedDate: habit.streaks?.lastCompletedDate || null,
+    },
+    notes: habit.notes || [],
+    isArchived: habit.isArchived || false,
+    sortOrder: habit.sortOrder || 0,
+    createdAt: habit.createdAt,
+    updatedAt: habit.updatedAt,
+  };
+};
+
+// Helper to transform habit for response (sync version - uses embedded data)
+// DEPRECATED: Use transformHabitAsync when possible
 const transformHabit = (habit) => ({
   id: habit._id.toString(),
   name: habit.name,
@@ -32,9 +89,9 @@ const transformHabit = (habit) => ({
       }
     : { enabled: false, time: "09:00", days: [] },
   streak: {
-    current: habit.streak?.current || 0,
-    longest: habit.streak?.longest || 0,
-    lastCompletedDate: habit.streak?.lastCompletedDate || null,
+    current: habit.streaks?.current || 0,
+    longest: habit.streaks?.longest || 0,
+    lastCompletedDate: habit.streaks?.lastCompletedDate || null,
   },
   notes: habit.notes || [],
   isArchived: habit.isArchived || false,
@@ -65,7 +122,7 @@ const checkHabitLimit = async (userId) => {
   };
 };
 
-// Helper to update streak
+// Helper to update streak (DEPRECATED - use updateStreakFromCompletions)
 const updateStreak = (habit, date) => {
   const today = new Date(date);
   const yesterday = new Date(today);
@@ -76,25 +133,79 @@ const updateStreak = (habit, date) => {
   const isCompleted = habit.completedDays.get(date);
 
   if (isCompleted) {
-    if (wasCompletedYesterday || habit.streak.current === 0) {
-      habit.streak.current += 1;
+    if (wasCompletedYesterday || habit.streaks.current === 0) {
+      habit.streaks.current += 1;
     } else {
-      habit.streak.current = 1;
+      habit.streaks.current = 1;
     }
-    habit.streak.longest = Math.max(habit.streak.longest, habit.streak.current);
-    habit.streak.lastCompletedDate = today;
+    habit.streaks.longest = Math.max(
+      habit.streaks.longest,
+      habit.streaks.current,
+    );
+    habit.streaks.lastCompletedDate = today;
   } else {
     // Check if streak should be reset
-    if (habit.streak.lastCompletedDate) {
-      const lastCompleted = new Date(habit.streak.lastCompletedDate);
+    if (habit.streaks.lastCompletedDate) {
+      const lastCompleted = new Date(habit.streaks.lastCompletedDate);
       const daysDiff = Math.floor(
         (today - lastCompleted) / (1000 * 60 * 60 * 24),
       );
       if (daysDiff > 1) {
-        habit.streak.current = 0;
+        habit.streaks.current = 0;
       }
     }
   }
+
+  return habit;
+};
+
+// Helper to update streak from HabitCompletion collection
+const updateStreakFromCompletions = async (habit) => {
+  const completions = await HabitCompletion.find({
+    habitId: habit._id,
+    completed: true,
+  })
+    .select("date")
+    .sort({ date: -1 })
+    .lean();
+
+  if (completions.length === 0) {
+    habit.streaks.current = 0;
+    habit.streaks.lastCompletedDate = null;
+    return habit;
+  }
+
+  const sortedDates = completions
+    .map((c) => c.date)
+    .sort()
+    .reverse();
+  habit.streaks.lastCompletedDate = sortedDates[0];
+
+  // Calculate current streak
+  const today = new Date().toISOString().split("T")[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+
+  // Only count if completed today or yesterday
+  if (sortedDates[0] !== today && sortedDates[0] !== yesterday) {
+    habit.streaks.current = 0;
+    return habit;
+  }
+
+  let currentStreak = 1;
+  for (let i = 1; i < sortedDates.length; i++) {
+    const prevDate = new Date(sortedDates[i - 1]);
+    const currDate = new Date(sortedDates[i]);
+    const diffDays = Math.round((prevDate - currDate) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) {
+      currentStreak++;
+    } else {
+      break;
+    }
+  }
+
+  habit.streaks.current = currentStreak;
+  habit.streaks.longest = Math.max(habit.streaks.longest, currentStreak);
 
   return habit;
 };
@@ -139,7 +250,11 @@ router.get("/", async (req, res) => {
     }
 
     const habits = await Habit.find(query).sort({ sortOrder: 1, createdAt: 1 });
-    const transformedHabits = habits.map(transformHabit);
+
+    // Transform all habits with completions from separate collection
+    const transformedHabits = await Promise.all(
+      habits.map((habit) => transformHabitAsync(habit)),
+    );
 
     // Get limits info
     const limits = await checkHabitLimit(req.userId);
@@ -165,7 +280,11 @@ router.get("/archived", async (req, res) => {
       isDeleted: { $ne: true },
     }).sort({ updatedAt: -1 });
 
-    res.json({ habits: habits.map(transformHabit) });
+    const transformedHabits = await Promise.all(
+      habits.map((habit) => transformHabitAsync(habit)),
+    );
+
+    res.json({ habits: transformedHabits });
   } catch (error) {
     console.error("Get archived habits error:", error);
     res.status(500).json({ message: "Server error" });
@@ -239,6 +358,103 @@ router.put("/layout", async (req, res) => {
   }
 });
 
+// ========== Completion Statistics Routes ==========
+// These must be before /:id routes to avoid being matched as habit IDs
+
+// @route   GET /api/habits/completions/range
+// @desc    Get all completions for user within date range (for calendar view)
+// @access  Private
+router.get("/completions/range", async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    if (!startDate || !endDate) {
+      return res
+        .status(400)
+        .json({ message: "startDate and endDate are required" });
+    }
+
+    const completions = await HabitCompletion.find({
+      userId: req.userId,
+      date: { $gte: startDate, $lte: endDate },
+      completed: true,
+    })
+      .select("habitId date completed value")
+      .lean();
+
+    // Group by habit for easier processing
+    const grouped = {};
+    completions.forEach((c) => {
+      const habitId = c.habitId.toString();
+      if (!grouped[habitId]) {
+        grouped[habitId] = [];
+      }
+      grouped[habitId].push(c.date);
+    });
+
+    res.json({
+      completions,
+      groupedByHabit: grouped,
+      totalCount: completions.length,
+    });
+  } catch (error) {
+    console.error("Get completions range error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   GET /api/habits/stats/monthly
+// @desc    Get monthly completion statistics
+// @access  Private
+router.get("/stats/monthly", async (req, res) => {
+  try {
+    const { year, month } = req.query;
+
+    const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+    const endDate = `${year}-${String(month).padStart(2, "0")}-31`;
+
+    // Get all habits for user
+    const habits = await Habit.find({
+      userId: req.userId,
+      isDeleted: { $ne: true },
+      isArchived: { $ne: true },
+    }).select("_id name color");
+
+    // Get completions for the month
+    const completions = await HabitCompletion.find({
+      userId: req.userId,
+      date: { $gte: startDate, $lte: endDate },
+      completed: true,
+    })
+      .select("habitId date")
+      .lean();
+
+    // Calculate stats
+    const stats = habits.map((habit) => {
+      const habitCompletions = completions.filter(
+        (c) => c.habitId.toString() === habit._id.toString(),
+      );
+      return {
+        habitId: habit._id,
+        name: habit.name,
+        color: habit.color,
+        completedDays: habitCompletions.length,
+        dates: habitCompletions.map((c) => c.date),
+      };
+    });
+
+    res.json({
+      year: parseInt(year),
+      month: parseInt(month),
+      stats,
+      totalCompletions: completions.length,
+    });
+  } catch (error) {
+    console.error("Get monthly stats error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 // @route   POST /api/habits
 // @desc    Create a new habit
 // @access  Private
@@ -296,34 +512,6 @@ router.post("/", async (req, res) => {
     });
   } catch (error) {
     console.error("Create habit error:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-});
-
-// @route   PUT /api/habits/:id
-// @desc    Update a habit
-// @access  Private
-router.put("/:id", async (req, res) => {
-  try {
-    const { name, goalDays } = req.body;
-    const { id } = req.params;
-
-    const habit = await Habit.findOne({ _id: id, userId: req.userId });
-
-    if (!habit) {
-      return res.status(404).json({ message: "Habit not found" });
-    }
-
-    habit.name = name || habit.name;
-    habit.goalDays = goalDays || habit.goalDays;
-    await habit.save();
-
-    res.json({
-      message: "Habit updated successfully",
-      habit: transformHabit(habit),
-    });
-  } catch (error) {
-    console.error("Update habit error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -486,18 +674,24 @@ router.post("/:id/toggle", async (req, res) => {
       return res.status(404).json({ message: "Habit not found" });
     }
 
-    // Toggle the day
-    const currentValue = habit.completedDays.get(date) || false;
-    habit.completedDays.set(date, !currentValue);
+    // Toggle completion using HabitCompletion collection
+    const completion = await HabitCompletion.toggleCompletion(
+      habit._id,
+      req.userId,
+      date,
+    );
 
-    // Update streak
-    updateStreak(habit, date);
-
+    // Update streak based on new completion status
+    await updateStreakFromCompletions(habit);
     await habit.save();
 
     res.json({
       message: "Day toggled successfully",
-      habit: transformHabit(habit),
+      habit: await transformHabitAsync(habit),
+      completion: {
+        date: completion.date,
+        completed: completion.completed,
+      },
     });
   } catch (error) {
     console.error("Toggle day error:", error);
@@ -607,6 +801,48 @@ router.post("/sync", async (req, res) => {
     });
   } catch (error) {
     console.error("Sync habits error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// ========== Completion-specific routes ==========
+
+// @route   GET /api/habits/:id/completions
+// @desc    Get completions for a specific habit within date range
+// @access  Private
+router.get("/:id/completions", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { startDate, endDate } = req.query;
+
+    // Verify habit belongs to user
+    const habit = await Habit.findOne({
+      _id: id,
+      userId: req.userId,
+      isDeleted: { $ne: true },
+    });
+
+    if (!habit) {
+      return res.status(404).json({ message: "Habit not found" });
+    }
+
+    let query = { habitId: id, completed: true };
+
+    // Add date range filter if provided
+    if (startDate || endDate) {
+      query.date = {};
+      if (startDate) query.date.$gte = startDate;
+      if (endDate) query.date.$lte = endDate;
+    }
+
+    const completions = await HabitCompletion.find(query)
+      .select("date completed value notes mood completedAt")
+      .sort({ date: -1 })
+      .lean();
+
+    res.json({ completions });
+  } catch (error) {
+    console.error("Get completions error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
