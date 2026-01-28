@@ -34,6 +34,9 @@ class HabitProvider extends ChangeNotifier {
   int _selectedYear = 2026;
   int _selectedMonth = 1; // January
   List<Habit> _habits = [];
+  List<Habit> _archivedHabits = [];
+  List<Habit> _pausedHabits = [];
+  List<Habit> _trashHabits = [];
   LayoutSettings _layoutSettings = LayoutSettings.defaultSettings();
   bool _isLoading = false;
   bool _isInitialized = false;
@@ -44,10 +47,16 @@ class HabitProvider extends ChangeNotifier {
   int get selectedYear => _selectedYear;
   int get selectedMonth => _selectedMonth;
   List<Habit> get habits => _habits;
+  List<Habit> get archivedHabits => _archivedHabits;
+  List<Habit> get pausedHabits => _pausedHabits;
+  List<Habit> get trashHabits => _trashHabits;
   LayoutSettings get layoutSettings => _layoutSettings;
   bool get isLoading => _isLoading;
   bool get isInitialized => _isInitialized;
   HabitLimits get limits => _limits;
+
+  // Get only active (non-paused) habits
+  List<Habit> get activeHabits => _habits.where((h) => !h.isPaused).toList();
 
   // Initialize and load habits + layout settings from backend
   Future<void> initialize() async {
@@ -93,10 +102,250 @@ class HabitProvider extends ChangeNotifier {
   // Reset when user logs out
   void reset() {
     _habits = [];
+    _archivedHabits = [];
+    _pausedHabits = [];
+    _trashHabits = [];
     _isInitialized = false;
     _limits = HabitLimits();
     _layoutSettings = LayoutSettings.defaultSettings();
     notifyListeners();
+  }
+
+  // ========== Pause/Resume Methods ==========
+
+  Future<void> pauseHabit(int habitId) async {
+    final habit = _habits.firstWhere(
+      (h) => h.id == habitId,
+      orElse: () => Habit(id: -1, name: '', goalDays: 0),
+    );
+    if (habit.id == -1 || habit.mongoId == null) return;
+
+    final updatedHabit = await _habitService.pauseHabit(habit.mongoId!);
+    if (updatedHabit != null) {
+      final index = _habits.indexWhere((h) => h.id == habitId);
+      if (index != -1) {
+        _habits[index] = updatedHabit;
+      }
+      notifyListeners();
+    }
+  }
+
+  Future<void> resumeHabit(int habitId) async {
+    final habit = _habits.firstWhere(
+      (h) => h.id == habitId,
+      orElse: () => Habit(id: -1, name: '', goalDays: 0),
+    );
+    if (habit.id == -1 || habit.mongoId == null) return;
+
+    final updatedHabit = await _habitService.resumeHabit(habit.mongoId!);
+    if (updatedHabit != null) {
+      final index = _habits.indexWhere((h) => h.id == habitId);
+      if (index != -1) {
+        _habits[index] = updatedHabit;
+      }
+      notifyListeners();
+    }
+  }
+
+  // ========== Archive Methods ==========
+
+  Future<void> loadArchivedHabits() async {
+    _archivedHabits = await _habitService.getArchivedHabits();
+    notifyListeners();
+  }
+
+  Future<void> restoreArchivedHabit(int habitId) async {
+    final habit = _archivedHabits.firstWhere(
+      (h) => h.id == habitId,
+      orElse: () => Habit(id: -1, name: '', goalDays: 0),
+    );
+    if (habit.id == -1 || habit.mongoId == null) return;
+
+    final restoredHabit = await _habitService.restoreHabit(habit.mongoId!);
+    if (restoredHabit != null) {
+      _archivedHabits.removeWhere((h) => h.id == habitId);
+      _habits.add(restoredHabit);
+      notifyListeners();
+    }
+  }
+
+  // ========== Trash Methods ==========
+
+  Future<void> loadTrashHabits() async {
+    _trashHabits = await _habitService.getTrashHabits();
+    notifyListeners();
+  }
+
+  Future<void> restoreFromTrash(int habitId) async {
+    final habit = _trashHabits.firstWhere(
+      (h) => h.id == habitId,
+      orElse: () => Habit(id: -1, name: '', goalDays: 0),
+    );
+    if (habit.id == -1 || habit.mongoId == null) return;
+
+    final restoredHabit = await _habitService.restoreFromTrash(habit.mongoId!);
+    if (restoredHabit != null) {
+      _trashHabits.removeWhere((h) => h.id == habitId);
+      _habits.add(restoredHabit);
+      notifyListeners();
+    }
+  }
+
+  Future<void> emptyTrash() async {
+    await _habitService.emptyTrash();
+    _trashHabits.clear();
+    notifyListeners();
+  }
+
+  Future<void> permanentlyDelete(int habitId) async {
+    final habit = _trashHabits.firstWhere(
+      (h) => h.id == habitId,
+      orElse: () => Habit(id: -1, name: '', goalDays: 0),
+    );
+    if (habit.id == -1 || habit.mongoId == null) return;
+
+    final success = await _habitService.deleteHabit(
+      habit.mongoId!,
+      permanent: true,
+    );
+    if (success) {
+      _trashHabits.removeWhere((h) => h.id == habitId);
+      notifyListeners();
+    }
+  }
+
+  // ========== Reminder Methods ==========
+
+  Future<void> updateReminder(
+    int habitId, {
+    bool? enabled,
+    String? time,
+    List<int>? days,
+  }) async {
+    final habit = _habits.firstWhere(
+      (h) => h.id == habitId,
+      orElse: () => Habit(id: -1, name: '', goalDays: 0),
+    );
+    if (habit.id == -1 || habit.mongoId == null) return;
+
+    final updatedHabit = await _habitService.updateReminder(
+      habit.mongoId!,
+      enabled: enabled,
+      time: time,
+      days: days,
+    );
+    if (updatedHabit != null) {
+      final index = _habits.indexWhere((h) => h.id == habitId);
+      if (index != -1) {
+        _habits[index] = updatedHabit;
+        notifyListeners();
+      }
+    }
+  }
+
+  // ========== Duplicate Method ==========
+
+  Future<Habit?> duplicateHabit(int habitId) async {
+    final habit = _habits.firstWhere(
+      (h) => h.id == habitId,
+      orElse: () => Habit(id: -1, name: '', goalDays: 0),
+    );
+    if (habit.id == -1 || habit.mongoId == null) return null;
+
+    try {
+      final duplicatedHabit = await _habitService.duplicateHabit(
+        habit.mongoId!,
+      );
+      if (duplicatedHabit != null) {
+        _habits.add(duplicatedHabit);
+        notifyListeners();
+        return duplicatedHabit;
+      }
+    } catch (e) {
+      rethrow;
+    }
+    return null;
+  }
+
+  // ========== Bulk Operations ==========
+
+  Future<void> bulkArchive(List<int> habitIds) async {
+    final mongoIds = _habits
+        .where((h) => habitIds.contains(h.id) && h.mongoId != null)
+        .map((h) => h.mongoId!)
+        .toList();
+
+    if (mongoIds.isEmpty) return;
+
+    final count = await _habitService.bulkArchive(mongoIds);
+    if (count > 0) {
+      _habits.removeWhere((h) => habitIds.contains(h.id));
+      notifyListeners();
+      await loadArchivedHabits();
+    }
+  }
+
+  Future<void> bulkDelete(List<int> habitIds) async {
+    final mongoIds = _habits
+        .where((h) => habitIds.contains(h.id) && h.mongoId != null)
+        .map((h) => h.mongoId!)
+        .toList();
+
+    if (mongoIds.isEmpty) return;
+
+    final count = await _habitService.bulkDelete(mongoIds);
+    if (count > 0) {
+      _habits.removeWhere((h) => habitIds.contains(h.id));
+      notifyListeners();
+    }
+  }
+
+  Future<void> bulkPause(List<int> habitIds) async {
+    final mongoIds = _habits
+        .where((h) => habitIds.contains(h.id) && h.mongoId != null)
+        .map((h) => h.mongoId!)
+        .toList();
+
+    if (mongoIds.isEmpty) return;
+
+    final count = await _habitService.bulkPause(mongoIds);
+    if (count > 0) {
+      await refreshHabits();
+    }
+  }
+
+  Future<void> bulkResume(List<int> habitIds) async {
+    final mongoIds = _habits
+        .where((h) => habitIds.contains(h.id) && h.mongoId != null)
+        .map((h) => h.mongoId!)
+        .toList();
+
+    if (mongoIds.isEmpty) return;
+
+    final count = await _habitService.bulkResume(mongoIds);
+    if (count > 0) {
+      await refreshHabits();
+    }
+  }
+
+  // ========== Stats Methods ==========
+
+  Future<Map<String, dynamic>?> getStreakDetails(int habitId) async {
+    final habit = _habits.firstWhere(
+      (h) => h.id == habitId,
+      orElse: () => Habit(id: -1, name: '', goalDays: 0),
+    );
+    if (habit.id == -1 || habit.mongoId == null) return null;
+
+    return await _habitService.getStreakDetails(habit.mongoId!);
+  }
+
+  Future<Map<String, dynamic>?> getAllStreaks() async {
+    return await _habitService.getAllStreaks();
+  }
+
+  Future<Map<String, dynamic>?> getMonthlyStats() async {
+    return await _habitService.getMonthlyStats(_selectedYear, _selectedMonth);
   }
 
   // ========== Layout Settings Methods ==========
@@ -240,31 +489,58 @@ class HabitProvider extends ChangeNotifier {
       (h) => h.id == habitId,
       orElse: () => Habit(id: -1, name: '', goalDays: 0),
     );
-    if (habit.id == -1) return;
+    if (habit.id == -1 || habit.mongoId == null) return;
 
-    if (habit.mongoId != null) {
-      final success = await _habitService.archiveHabit(habit.mongoId!);
-      if (success) {
-        _habits.removeWhere((h) => h.id == habitId);
-        notifyListeners();
-      }
+    final success = await _habitService.archiveHabit(habit.mongoId!);
+    if (success) {
+      _habits.removeWhere((h) => h.id == habitId);
+      // Add to archived list with updated status
+      final archivedHabit = Habit(
+        id: habit.id,
+        mongoId: habit.mongoId,
+        name: habit.name,
+        goalDays: habit.goalDays,
+        color: habit.color,
+        icon: habit.icon,
+        category: habit.category,
+        completedDays: habit.completedDays,
+        streak: habit.streak,
+        isArchived: true,
+        archivedAt: DateTime.now(),
+      );
+      _archivedHabits.add(archivedHabit);
+      notifyListeners();
     }
   }
 
+  /// Soft delete - moves habit to trash (can be restored within 30 days)
   Future<void> removeHabit(int habitId) async {
     final habit = _habits.firstWhere(
       (h) => h.id == habitId,
       orElse: () => Habit(id: -1, name: '', goalDays: 0),
     );
-    if (habit.id == -1) return;
+    if (habit.id == -1 || habit.mongoId == null) return;
 
-    // Optimistically update UI
-    _habits.removeWhere((h) => h.id == habitId);
-    notifyListeners();
-
-    // Delete from backend
-    if (habit.mongoId != null) {
-      await _habitService.deleteHabit(habit.mongoId!);
+    // Delete from backend (soft delete - moves to trash)
+    final success = await _habitService.deleteHabit(habit.mongoId!);
+    if (success) {
+      _habits.removeWhere((h) => h.id == habitId);
+      // Add to trash list with updated status
+      final trashedHabit = Habit(
+        id: habit.id,
+        mongoId: habit.mongoId,
+        name: habit.name,
+        goalDays: habit.goalDays,
+        color: habit.color,
+        icon: habit.icon,
+        category: habit.category,
+        completedDays: habit.completedDays,
+        streak: habit.streak,
+        isDeleted: true,
+        deletedAt: DateTime.now(),
+      );
+      _trashHabits.add(trashedHabit);
+      notifyListeners();
     }
   }
 

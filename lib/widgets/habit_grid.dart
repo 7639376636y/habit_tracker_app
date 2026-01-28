@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/habit_provider.dart';
+import '../models/habit.dart';
+import 'habit_actions_sheet.dart';
 
 class HabitGrid extends StatelessWidget {
   const HabitGrid({super.key});
@@ -152,6 +154,7 @@ class HabitGrid extends StatelessWidget {
                         final index = entry.key;
                         final habit = entry.value;
                         return _buildFlexibleHabitRow(
+                          context,
                           provider,
                           habit,
                           index,
@@ -310,6 +313,7 @@ class HabitGrid extends StatelessWidget {
   }
 
   Widget _buildFlexibleHabitRow(
+    BuildContext context,
     HabitProvider provider,
     dynamic habit,
     int index,
@@ -319,142 +323,201 @@ class HabitGrid extends StatelessWidget {
     double goalWidth,
     double dayWidth,
   ) {
-    return Container(
-      margin: const EdgeInsets.only(top: 3),
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      decoration: BoxDecoration(
-        color: index.isEven ? Colors.white : const Color(0xFFFAFAFA),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFF1F5F9)),
-      ),
-      child: Row(
-        children: [
-          // Index
-          SizedBox(
-            width: indexWidth,
-            child: Center(
-              child: Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
+    final isPaused = habit is Habit && habit.isPaused;
+
+    return GestureDetector(
+      onLongPress: () {
+        if (habit is Habit) {
+          showHabitActionsSheet(context, habit);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(top: 3),
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        decoration: BoxDecoration(
+          color: isPaused
+              ? const Color(0xFFFEF3C7).withValues(alpha: 0.5)
+              : (index.isEven ? Colors.white : const Color(0xFFFAFAFA)),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isPaused
+                ? const Color(0xFFF59E0B).withValues(alpha: 0.3)
+                : const Color(0xFFF1F5F9),
+          ),
+        ),
+        child: Row(
+          children: [
+            // Index
+            SizedBox(
+              width: indexWidth,
+              child: Center(
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: isPaused
+                        ? const Color(0xFFF59E0B).withValues(alpha: 0.1)
+                        : const Color(0xFF6366F1).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Center(
+                    child: isPaused
+                        ? const Icon(
+                            Icons.pause_rounded,
+                            size: 14,
+                            color: Color(0xFFF59E0B),
+                          )
+                        : Text(
+                            '${index + 1}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF6366F1),
+                            ),
+                          ),
+                  ),
                 ),
-                child: Center(
+              ),
+            ),
+            // Name
+            SizedBox(
+              width: habitNameWidth,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      habit.name,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: isPaused
+                            ? const Color(0xFF92400E)
+                            : const Color(0xFF1F2937),
+                        fontStyle: isPaused
+                            ? FontStyle.italic
+                            : FontStyle.normal,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (isPaused)
+                    Container(
+                      margin: const EdgeInsets.only(left: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Paused',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFD97706),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            // Goal
+            SizedBox(
+              width: goalWidth,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Text(
-                    '${index + 1}',
+                    '${habit.goalDays}',
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF6366F1),
+                      color: Color(0xFF10B981),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          // Name
-          SizedBox(
-            width: habitNameWidth,
-            child: Text(
-              habit.name,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF1F2937),
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          // Goal
-          SizedBox(
-            width: goalWidth,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${habit.goalDays}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF10B981),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          // Day checkboxes grouped by week
-          Expanded(
-            child: Row(
-              children: weeks.asMap().entries.map((weekEntry) {
-                final weekIndex = weekEntry.key;
-                final week = weekEntry.value;
-                final weekColor = _getWeekColor(weekIndex);
-                return Expanded(
-                  flex: week.length,
-                  child: Container(
-                    margin: EdgeInsets.only(left: weekIndex > 0 ? 2 : 0),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 2,
-                      horizontal: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: weekColor.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      children: week.map((date) {
-                        final isCompleted = habit.isCompletedOn(date);
-                        return Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 1),
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: () =>
-                                    provider.toggleHabitDay(habit.id, date),
-                                borderRadius: BorderRadius.circular(6),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 150),
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    gradient: isCompleted
-                                        ? const LinearGradient(
-                                            colors: [
-                                              Color(0xFF10B981),
-                                              Color(0xFF059669),
-                                            ],
+            // Day checkboxes grouped by week
+            Expanded(
+              child: Row(
+                children: weeks.asMap().entries.map((weekEntry) {
+                  final weekIndex = weekEntry.key;
+                  final week = weekEntry.value;
+                  final weekColor = _getWeekColor(weekIndex);
+                  return Expanded(
+                    flex: week.length,
+                    child: Container(
+                      margin: EdgeInsets.only(left: weekIndex > 0 ? 2 : 0),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 2,
+                        horizontal: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: weekColor.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        children: week.map((date) {
+                          final isCompleted = habit.isCompletedOn(date);
+                          return Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 1,
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: () =>
+                                      provider.toggleHabitDay(habit.id, date),
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 150),
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      gradient: isCompleted
+                                          ? const LinearGradient(
+                                              colors: [
+                                                Color(0xFF10B981),
+                                                Color(0xFF059669),
+                                              ],
+                                            )
+                                          : null,
+                                      color: isCompleted
+                                          ? null
+                                          : const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: isCompleted
+                                        ? const Icon(
+                                            Icons.check_rounded,
+                                            size: 16,
+                                            color: Colors.white,
                                           )
                                         : null,
-                                    color: isCompleted
-                                        ? null
-                                        : const Color(0xFFF1F5F9),
-                                    borderRadius: BorderRadius.circular(6),
                                   ),
-                                  child: isCompleted
-                                      ? const Icon(
-                                          Icons.check_rounded,
-                                          size: 16,
-                                          color: Colors.white,
-                                        )
-                                      : null,
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      }).toList(),
+                          );
+                        }).toList(),
+                      ),
                     ),
-                  ),
-                );
-              }).toList(),
+                  );
+                }).toList(),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -112,8 +112,18 @@ class Habit {
   final HabitFrequency frequency;
   final HabitReminder reminder;
   final HabitStreak streak;
+  // Status flags
+  final bool isActive;
+  final bool isPaused;
+  final DateTime? pausedAt;
   final bool isArchived;
+  final DateTime? archivedAt;
+  final bool isDeleted;
+  final DateTime? deletedAt;
+  // Ordering & dates
   final int sortOrder;
+  final DateTime? startDate;
+  final DateTime? endDate;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -130,8 +140,16 @@ class Habit {
     HabitFrequency? frequency,
     HabitReminder? reminder,
     HabitStreak? streak,
+    this.isActive = true,
+    this.isPaused = false,
+    this.pausedAt,
     this.isArchived = false,
+    this.archivedAt,
+    this.isDeleted = false,
+    this.deletedAt,
     this.sortOrder = 0,
+    this.startDate,
+    this.endDate,
     this.createdAt,
     this.updatedAt,
   }) : completedDays = completedDays ?? {},
@@ -162,8 +180,16 @@ class Habit {
     HabitFrequency? frequency,
     HabitReminder? reminder,
     HabitStreak? streak,
+    bool? isActive,
+    bool? isPaused,
+    DateTime? pausedAt,
     bool? isArchived,
+    DateTime? archivedAt,
+    bool? isDeleted,
+    DateTime? deletedAt,
     int? sortOrder,
+    DateTime? startDate,
+    DateTime? endDate,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -180,8 +206,16 @@ class Habit {
       frequency: frequency ?? this.frequency,
       reminder: reminder ?? this.reminder,
       streak: streak ?? this.streak,
+      isActive: isActive ?? this.isActive,
+      isPaused: isPaused ?? this.isPaused,
+      pausedAt: pausedAt ?? this.pausedAt,
       isArchived: isArchived ?? this.isArchived,
+      archivedAt: archivedAt ?? this.archivedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      deletedAt: deletedAt ?? this.deletedAt,
       sortOrder: sortOrder ?? this.sortOrder,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -237,9 +271,27 @@ class Habit {
       completedDays: completedDays,
       frequency: HabitFrequency.fromJson(json['frequency']),
       reminder: HabitReminder.fromJson(json['reminder']),
-      streak: HabitStreak.fromJson(json['streak']),
+      streak: HabitStreak.fromJson(json['streaks'] ?? json['streak']),
+      // Status flags
+      isActive: json['isActive'] ?? true,
+      isPaused: json['isPaused'] ?? false,
+      pausedAt: json['pausedAt'] != null
+          ? DateTime.parse(json['pausedAt'])
+          : null,
       isArchived: json['isArchived'] ?? false,
+      archivedAt: json['archivedAt'] != null
+          ? DateTime.parse(json['archivedAt'])
+          : null,
+      isDeleted: json['isDeleted'] ?? false,
+      deletedAt: json['deletedAt'] != null
+          ? DateTime.parse(json['deletedAt'])
+          : null,
+      // Ordering & dates
       sortOrder: json['sortOrder'] ?? 0,
+      startDate: json['startDate'] != null
+          ? DateTime.parse(json['startDate'])
+          : null,
+      endDate: json['endDate'] != null ? DateTime.parse(json['endDate']) : null,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'])
           : null,
@@ -273,8 +325,17 @@ class Habit {
       'completedDays': completedDaysMap,
       'frequency': frequency.toJson(),
       'reminder': reminder.toJson(),
+      'streaks': streak.toJson(),
+      'isActive': isActive,
+      'isPaused': isPaused,
+      if (pausedAt != null) 'pausedAt': pausedAt!.toIso8601String(),
       'isArchived': isArchived,
+      if (archivedAt != null) 'archivedAt': archivedAt!.toIso8601String(),
+      'isDeleted': isDeleted,
+      if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
       'sortOrder': sortOrder,
+      if (startDate != null) 'startDate': startDate!.toIso8601String(),
+      if (endDate != null) 'endDate': endDate!.toIso8601String(),
     };
   }
 }

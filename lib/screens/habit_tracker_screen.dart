@@ -12,6 +12,8 @@ import '../widgets/top_habits_widget.dart';
 import '../widgets/overall_progress_widget.dart';
 import '../widgets/layout_customizer.dart';
 import '../widgets/empty_habits_view.dart';
+import 'archived_screen.dart';
+import 'trash_screen.dart';
 
 class HabitTrackerScreen extends StatefulWidget {
   const HabitTrackerScreen({super.key});
@@ -560,24 +562,106 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
   }
 
   Widget _buildLogoutButton(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _showLogoutConfirmation(context),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(
-            Icons.logout_rounded,
-            color: Color(0xFF64748B),
-            size: 20,
-          ),
+    return PopupMenuButton<String>(
+      icon: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(
+          Icons.more_vert_rounded,
+          color: Color(0xFF64748B),
+          size: 20,
         ),
       ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      offset: const Offset(0, 48),
+      onSelected: (value) {
+        switch (value) {
+          case 'archived':
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ArchivedScreen()),
+            );
+            break;
+          case 'trash':
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const TrashScreen()),
+            );
+            break;
+          case 'logout':
+            _showLogoutConfirmation(context);
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'archived',
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.archive_outlined,
+                  color: Color(0xFF6366F1),
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text('Archived Habits'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'trash',
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: Color(0xFFEF4444),
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text('Trash'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'logout',
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  color: Color(0xFF64748B),
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text('Sign Out'),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

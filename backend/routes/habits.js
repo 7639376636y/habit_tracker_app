@@ -52,14 +52,24 @@ const transformHabitAsync = async (habit) => {
           days: habit.reminder.days || [],
         }
       : { enabled: false, time: "09:00", days: [] },
-    streak: {
+    streaks: {
       current: habit.streaks?.current || 0,
       longest: habit.streaks?.longest || 0,
       lastCompletedDate: habit.streaks?.lastCompletedDate || null,
     },
     notes: habit.notes || [],
+    // Status flags
+    isActive: habit.isActive ?? true,
+    isPaused: habit.isPaused || false,
+    pausedAt: habit.pausedAt || null,
     isArchived: habit.isArchived || false,
+    archivedAt: habit.archivedAt || null,
+    isDeleted: habit.isDeleted || false,
+    deletedAt: habit.deletedAt || null,
+    // Ordering & dates
     sortOrder: habit.sortOrder || 0,
+    startDate: habit.startDate,
+    endDate: habit.endDate,
     createdAt: habit.createdAt,
     updatedAt: habit.updatedAt,
   };
@@ -88,14 +98,24 @@ const transformHabit = (habit) => ({
         days: habit.reminder.days || [],
       }
     : { enabled: false, time: "09:00", days: [] },
-  streak: {
+  streaks: {
     current: habit.streaks?.current || 0,
     longest: habit.streaks?.longest || 0,
     lastCompletedDate: habit.streaks?.lastCompletedDate || null,
   },
   notes: habit.notes || [],
+  // Status flags
+  isActive: habit.isActive ?? true,
+  isPaused: habit.isPaused || false,
+  pausedAt: habit.pausedAt || null,
   isArchived: habit.isArchived || false,
+  archivedAt: habit.archivedAt || null,
+  isDeleted: habit.isDeleted || false,
+  deletedAt: habit.deletedAt || null,
+  // Ordering & dates
   sortOrder: habit.sortOrder || 0,
+  startDate: habit.startDate,
+  endDate: habit.endDate,
   createdAt: habit.createdAt,
   updatedAt: habit.updatedAt,
 });
@@ -287,6 +307,126 @@ router.get("/archived", async (req, res) => {
     res.json({ habits: transformedHabits });
   } catch (error) {
     console.error("Get archived habits error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   GET /api/habits/paused
+// @desc    Get paused habits
+// @access  Private
+router.get("/paused", async (req, res) => {
+  try {
+    const habits = await Habit.find({
+      userId: req.userId,
+      isPaused: true,
+      isDeleted: { $ne: true },
+      isArchived: { $ne: true },
+    }).sort({ pausedAt: -1 });
+
+    const transformedHabits = await Promise.all(
+      habits.map((habit) => transformHabitAsync(habit)),
+    );
+
+    res.json({ habits: transformedHabits });
+  } catch (error) {
+    console.error("Get paused habits error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   GET /api/habits/trash
+// @desc    Get deleted habits (trash)
+// @access  Private
+router.get("/trash", async (req, res) => {
+  try {
+    const habits = await Habit.find({
+      userId: req.userId,
+      isDeleted: true,
+    })
+      .sort({ deletedAt: -1 })
+      .setOptions({ includeDeleted: true });
+
+    const transformedHabits = await Promise.all(
+      habits.map((habit) => transformHabitAsync(habit)),
+    );
+
+    res.json({ habits: transformedHabits });
+  } catch (error) {
+    console.error("Get trash habits error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   GET /api/habits/reminders
+// @desc    Get all habits with reminders enabled
+// @access  Private
+router.get("/reminders", async (req, res) => {
+  try {
+    const habits = await Habit.find({
+      userId: req.userId,
+      "reminder.enabled": true,
+      isDeleted: { $ne: true },
+      isArchived: { $ne: true },
+      isPaused: { $ne: true },
+    }).sort({ "reminder.time": 1 });
+
+    const transformedHabits = await Promise.all(
+      habits.map((habit) => transformHabitAsync(habit)),
+    );
+
+    res.json({ habits: transformedHabits });
+  } catch (error) {
+    console.error("Get reminders error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   GET /api/habits/streaks/all
+// @desc    Get streak summary for all habits
+// @access  Private
+router.get("/streaks/all", async (req, res) => {
+  try {
+    const habits = await Habit.find({
+      userId: req.userId,
+      isDeleted: { $ne: true },
+      isArchived: { $ne: true },
+    }).select("_id name color streaks");
+
+    const streakSummary = habits.map((habit) => ({
+      habitId: habit._id,
+      name: habit.name,
+      color: habit.color,
+      currentStreak: habit.streaks?.current || 0,
+      longestStreak: habit.streaks?.longest || 0,
+      lastCompletedDate: habit.streaks?.lastCompletedDate,
+    }));
+
+    // Sort by current streak descending
+    streakSummary.sort((a, b) => b.currentStreak - a.currentStreak);
+
+    const totalCurrentStreak = streakSummary.reduce(
+      (sum, h) => sum + h.currentStreak,
+      0,
+    );
+    const bestOverallStreak = Math.max(
+      ...streakSummary.map((h) => h.longestStreak),
+      0,
+    );
+    const activeStreaks = streakSummary.filter(
+      (h) => h.currentStreak > 0,
+    ).length;
+
+    res.json({
+      habits: streakSummary,
+      summary: {
+        totalHabits: habits.length,
+        activeStreaks,
+        totalCurrentStreak,
+        bestOverallStreak,
+      },
+    });
+  } catch (error) {
+    console.error("Get all streaks error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -621,6 +761,489 @@ router.post("/:id/restore", async (req, res) => {
     });
   } catch (error) {
     console.error("Restore habit error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   POST /api/habits/:id/pause
+// @desc    Pause a habit (temporarily stop tracking)
+// @access  Private
+router.post("/:id/pause", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const habit = await Habit.findOne({
+      _id: id,
+      userId: req.userId,
+      isDeleted: { $ne: true },
+    });
+
+    if (!habit) {
+      return res.status(404).json({ message: "Habit not found" });
+    }
+
+    habit.isPaused = true;
+    habit.pausedAt = new Date();
+    await habit.save();
+
+    res.json({
+      message: "Habit paused successfully",
+      habit: await transformHabitAsync(habit),
+    });
+  } catch (error) {
+    console.error("Pause habit error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   POST /api/habits/:id/resume
+// @desc    Resume a paused habit
+// @access  Private
+router.post("/:id/resume", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const habit = await Habit.findOne({
+      _id: id,
+      userId: req.userId,
+      isDeleted: { $ne: true },
+    });
+
+    if (!habit) {
+      return res.status(404).json({ message: "Habit not found" });
+    }
+
+    habit.isPaused = false;
+    habit.pausedAt = null;
+    await habit.save();
+
+    res.json({
+      message: "Habit resumed successfully",
+      habit: await transformHabitAsync(habit),
+    });
+  } catch (error) {
+    console.error("Resume habit error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   PUT /api/habits/:id/reminder
+// @desc    Update habit reminder settings
+// @access  Private
+router.put("/:id/reminder", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { enabled, time, days } = req.body;
+
+    const habit = await Habit.findOne({
+      _id: id,
+      userId: req.userId,
+      isDeleted: { $ne: true },
+    });
+
+    if (!habit) {
+      return res.status(404).json({ message: "Habit not found" });
+    }
+
+    // Update reminder settings
+    habit.reminder = {
+      enabled: enabled ?? habit.reminder?.enabled ?? false,
+      time: time ?? habit.reminder?.time ?? "09:00",
+      days: days ?? habit.reminder?.days ?? [0, 1, 2, 3, 4, 5, 6],
+    };
+
+    await habit.save();
+
+    res.json({
+      message: "Reminder updated successfully",
+      habit: await transformHabitAsync(habit),
+    });
+  } catch (error) {
+    console.error("Update reminder error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   GET /api/habits/:id/streaks
+// @desc    Get detailed streak information for a habit
+// @access  Private
+router.get("/:id/streaks", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const habit = await Habit.findOne({
+      _id: id,
+      userId: req.userId,
+      isDeleted: { $ne: true },
+    });
+
+    if (!habit) {
+      return res.status(404).json({ message: "Habit not found" });
+    }
+
+    // Get all completions for this habit
+    const completions = await HabitCompletion.find({
+      habitId: id,
+      completed: true,
+    })
+      .select("date")
+      .sort({ date: -1 })
+      .lean();
+
+    const dates = completions.map((c) => c.date).sort();
+
+    // Calculate all streaks
+    const streaks = [];
+    let currentStreakStart = null;
+    let currentStreakLength = 0;
+
+    for (let i = 0; i < dates.length; i++) {
+      if (i === 0) {
+        currentStreakStart = dates[i];
+        currentStreakLength = 1;
+      } else {
+        const prevDate = new Date(dates[i - 1]);
+        const currDate = new Date(dates[i]);
+        const diffDays = Math.round(
+          (currDate - prevDate) / (1000 * 60 * 60 * 24),
+        );
+
+        if (diffDays === 1) {
+          currentStreakLength++;
+        } else {
+          // Save previous streak
+          streaks.push({
+            startDate: currentStreakStart,
+            endDate: dates[i - 1],
+            length: currentStreakLength,
+          });
+          // Start new streak
+          currentStreakStart = dates[i];
+          currentStreakLength = 1;
+        }
+      }
+    }
+
+    // Add the last streak
+    if (currentStreakLength > 0) {
+      streaks.push({
+        startDate: currentStreakStart,
+        endDate: dates[dates.length - 1],
+        length: currentStreakLength,
+      });
+    }
+
+    // Sort by length to find best streaks
+    const sortedByLength = [...streaks].sort((a, b) => b.length - a.length);
+
+    res.json({
+      habitId: id,
+      habitName: habit.name,
+      currentStreak: habit.streaks?.current || 0,
+      longestStreak: habit.streaks?.longest || 0,
+      lastCompletedDate: habit.streaks?.lastCompletedDate,
+      totalCompletions: dates.length,
+      allStreaks: streaks.reverse(), // Most recent first
+      topStreaks: sortedByLength.slice(0, 5), // Top 5 streaks
+    });
+  } catch (error) {
+    console.error("Get streaks error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   GET /api/habits/:id
+// @desc    Get a single habit by ID
+// @access  Private
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const habit = await Habit.findOne({
+      _id: id,
+      userId: req.userId,
+      isDeleted: { $ne: true },
+    });
+
+    if (!habit) {
+      return res.status(404).json({ message: "Habit not found" });
+    }
+
+    res.json({
+      habit: await transformHabitAsync(habit),
+    });
+  } catch (error) {
+    console.error("Get habit error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   POST /api/habits/:id/duplicate
+// @desc    Duplicate a habit
+// @access  Private
+router.post("/:id/duplicate", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check habit limit
+    const limits = await checkHabitLimit(req.userId);
+    if (!limits.canCreate) {
+      return res.status(403).json({
+        message: `You've reached your habit limit (${limits.max}). Upgrade to create more habits.`,
+        limits,
+      });
+    }
+
+    const habit = await Habit.findOne({
+      _id: id,
+      userId: req.userId,
+      isDeleted: { $ne: true },
+    });
+
+    if (!habit) {
+      return res.status(404).json({ message: "Habit not found" });
+    }
+
+    // Create duplicate
+    const duplicatedHabit = new Habit({
+      userId: req.userId,
+      name: `${habit.name} (Copy)`,
+      description: habit.description,
+      category: habit.category,
+      color: habit.color,
+      icon: habit.icon,
+      goalDays: habit.goalDays,
+      frequency: habit.frequency,
+      reminder: {
+        enabled: false, // Disable reminder by default for duplicate
+        time: habit.reminder?.time || "09:00",
+        days: habit.reminder?.days || [0, 1, 2, 3, 4, 5, 6],
+      },
+      sortOrder: habit.sortOrder + 1,
+    });
+
+    await duplicatedHabit.save();
+
+    res.json({
+      message: "Habit duplicated successfully",
+      habit: await transformHabitAsync(duplicatedHabit),
+    });
+  } catch (error) {
+    console.error("Duplicate habit error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   POST /api/habits/:id/restore-from-trash
+// @desc    Restore a deleted habit from trash
+// @access  Private
+router.post("/:id/restore-from-trash", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const habit = await Habit.findOne({
+      _id: id,
+      userId: req.userId,
+      isDeleted: true,
+    }).setOptions({ includeDeleted: true });
+
+    if (!habit) {
+      return res.status(404).json({ message: "Habit not found in trash" });
+    }
+
+    habit.isDeleted = false;
+    habit.deletedAt = null;
+    await habit.save();
+
+    res.json({
+      message: "Habit restored from trash successfully",
+      habit: await transformHabitAsync(habit),
+    });
+  } catch (error) {
+    console.error("Restore from trash error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   DELETE /api/habits/trash/empty
+// @desc    Permanently delete all habits in trash
+// @access  Private
+router.delete("/trash/empty", async (req, res) => {
+  try {
+    const result = await Habit.deleteMany({
+      userId: req.userId,
+      isDeleted: true,
+    });
+
+    // Also delete associated completions
+    const deletedHabitIds = await Habit.find({
+      userId: req.userId,
+      isDeleted: true,
+    })
+      .select("_id")
+      .setOptions({ includeDeleted: true });
+
+    if (deletedHabitIds.length > 0) {
+      await HabitCompletion.deleteMany({
+        habitId: { $in: deletedHabitIds.map((h) => h._id) },
+      });
+    }
+
+    res.json({
+      message: `${result.deletedCount} habits permanently deleted`,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    console.error("Empty trash error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   POST /api/habits/bulk/archive
+// @desc    Archive multiple habits
+// @access  Private
+router.post("/bulk/archive", async (req, res) => {
+  try {
+    const { habitIds } = req.body;
+
+    if (!habitIds || !Array.isArray(habitIds)) {
+      return res.status(400).json({ message: "habitIds array is required" });
+    }
+
+    const result = await Habit.updateMany(
+      {
+        _id: { $in: habitIds },
+        userId: req.userId,
+        isDeleted: { $ne: true },
+      },
+      {
+        isArchived: true,
+        archivedAt: new Date(),
+      },
+    );
+
+    res.json({
+      message: `${result.modifiedCount} habits archived`,
+      modifiedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    console.error("Bulk archive error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   POST /api/habits/bulk/delete
+// @desc    Delete multiple habits (soft delete)
+// @access  Private
+router.post("/bulk/delete", async (req, res) => {
+  try {
+    const { habitIds, permanent } = req.body;
+
+    if (!habitIds || !Array.isArray(habitIds)) {
+      return res.status(400).json({ message: "habitIds array is required" });
+    }
+
+    if (permanent === true) {
+      // Permanent delete
+      const result = await Habit.deleteMany({
+        _id: { $in: habitIds },
+        userId: req.userId,
+      });
+
+      // Also delete completions
+      await HabitCompletion.deleteMany({
+        habitId: { $in: habitIds },
+      });
+
+      res.json({
+        message: `${result.deletedCount} habits permanently deleted`,
+        deletedCount: result.deletedCount,
+      });
+    } else {
+      // Soft delete
+      const result = await Habit.updateMany(
+        {
+          _id: { $in: habitIds },
+          userId: req.userId,
+        },
+        {
+          isDeleted: true,
+          deletedAt: new Date(),
+        },
+      );
+
+      res.json({
+        message: `${result.modifiedCount} habits deleted`,
+        modifiedCount: result.modifiedCount,
+      });
+    }
+  } catch (error) {
+    console.error("Bulk delete error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   POST /api/habits/bulk/pause
+// @desc    Pause multiple habits
+// @access  Private
+router.post("/bulk/pause", async (req, res) => {
+  try {
+    const { habitIds } = req.body;
+
+    if (!habitIds || !Array.isArray(habitIds)) {
+      return res.status(400).json({ message: "habitIds array is required" });
+    }
+
+    const result = await Habit.updateMany(
+      {
+        _id: { $in: habitIds },
+        userId: req.userId,
+        isDeleted: { $ne: true },
+        isArchived: { $ne: true },
+      },
+      {
+        isPaused: true,
+        pausedAt: new Date(),
+      },
+    );
+
+    res.json({
+      message: `${result.modifiedCount} habits paused`,
+      modifiedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    console.error("Bulk pause error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// @route   POST /api/habits/bulk/resume
+// @desc    Resume multiple paused habits
+// @access  Private
+router.post("/bulk/resume", async (req, res) => {
+  try {
+    const { habitIds } = req.body;
+
+    if (!habitIds || !Array.isArray(habitIds)) {
+      return res.status(400).json({ message: "habitIds array is required" });
+    }
+
+    const result = await Habit.updateMany(
+      {
+        _id: { $in: habitIds },
+        userId: req.userId,
+        isDeleted: { $ne: true },
+      },
+      {
+        isPaused: false,
+        pausedAt: null,
+      },
+    );
+
+    res.json({
+      message: `${result.modifiedCount} habits resumed`,
+      modifiedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    console.error("Bulk resume error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });

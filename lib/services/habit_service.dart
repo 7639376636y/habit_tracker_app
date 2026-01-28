@@ -213,6 +213,391 @@ class HabitService {
     }
   }
 
+  // Get paused habits
+  Future<List<Habit>> getPausedHabits() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('${ApiConfig.habits}/paused'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final habitsJson = data['habits'] as List;
+        return habitsJson.map((json) => Habit.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error getting paused habits: $e');
+      return [];
+    }
+  }
+
+  // Get deleted habits (trash)
+  Future<List<Habit>> getTrashHabits() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('${ApiConfig.habits}/trash'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final habitsJson = data['habits'] as List;
+        return habitsJson.map((json) => Habit.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error getting trash habits: $e');
+      return [];
+    }
+  }
+
+  // Pause habit
+  Future<Habit?> pauseHabit(String habitId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('${ApiConfig.habits}/$habitId/pause'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return Habit.fromJson(data['habit']);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error pausing habit: $e');
+      return null;
+    }
+  }
+
+  // Resume habit
+  Future<Habit?> resumeHabit(String habitId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('${ApiConfig.habits}/$habitId/resume'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return Habit.fromJson(data['habit']);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error resuming habit: $e');
+      return null;
+    }
+  }
+
+  // Update reminder
+  Future<Habit?> updateReminder(
+    String habitId, {
+    bool? enabled,
+    String? time,
+    List<int>? days,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final body = <String, dynamic>{};
+      if (enabled != null) body['enabled'] = enabled;
+      if (time != null) body['time'] = time;
+      if (days != null) body['days'] = days;
+
+      final response = await http.put(
+        Uri.parse('${ApiConfig.habits}/$habitId/reminder'),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return Habit.fromJson(data['habit']);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error updating reminder: $e');
+      return null;
+    }
+  }
+
+  // Get streak details for a habit
+  Future<Map<String, dynamic>?> getStreakDetails(String habitId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('${ApiConfig.habits}/$habitId/streaks'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting streak details: $e');
+      return null;
+    }
+  }
+
+  // Get all streaks summary
+  Future<Map<String, dynamic>?> getAllStreaks() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('${ApiConfig.habits}/streaks/all'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting all streaks: $e');
+      return null;
+    }
+  }
+
+  // Duplicate habit
+  Future<Habit?> duplicateHabit(String habitId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('${ApiConfig.habits}/$habitId/duplicate'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return Habit.fromJson(data['habit']);
+      } else if (response.statusCode == 403) {
+        final data = jsonDecode(response.body);
+        throw Exception(data['message']);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error duplicating habit: $e');
+      rethrow;
+    }
+  }
+
+  // Restore from trash
+  Future<Habit?> restoreFromTrash(String habitId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('${ApiConfig.habits}/$habitId/restore-from-trash'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return Habit.fromJson(data['habit']);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error restoring from trash: $e');
+      return null;
+    }
+  }
+
+  // Empty trash
+  Future<int> emptyTrash() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.habits}/trash/empty'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['deletedCount'] ?? 0;
+      }
+      return 0;
+    } catch (e) {
+      debugPrint('Error emptying trash: $e');
+      return 0;
+    }
+  }
+
+  // Get single habit
+  Future<Habit?> getHabit(String habitId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('${ApiConfig.habits}/$habitId'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return Habit.fromJson(data['habit']);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting habit: $e');
+      return null;
+    }
+  }
+
+  // Bulk archive
+  Future<int> bulkArchive(List<String> habitIds) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('${ApiConfig.habits}/bulk/archive'),
+        headers: headers,
+        body: jsonEncode({'habitIds': habitIds}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['modifiedCount'] ?? 0;
+      }
+      return 0;
+    } catch (e) {
+      debugPrint('Error bulk archiving: $e');
+      return 0;
+    }
+  }
+
+  // Bulk delete
+  Future<int> bulkDelete(
+    List<String> habitIds, {
+    bool permanent = false,
+  }) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('${ApiConfig.habits}/bulk/delete'),
+        headers: headers,
+        body: jsonEncode({'habitIds': habitIds, 'permanent': permanent}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['modifiedCount'] ?? data['deletedCount'] ?? 0;
+      }
+      return 0;
+    } catch (e) {
+      debugPrint('Error bulk deleting: $e');
+      return 0;
+    }
+  }
+
+  // Bulk pause
+  Future<int> bulkPause(List<String> habitIds) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('${ApiConfig.habits}/bulk/pause'),
+        headers: headers,
+        body: jsonEncode({'habitIds': habitIds}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['modifiedCount'] ?? 0;
+      }
+      return 0;
+    } catch (e) {
+      debugPrint('Error bulk pausing: $e');
+      return 0;
+    }
+  }
+
+  // Bulk resume
+  Future<int> bulkResume(List<String> habitIds) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('${ApiConfig.habits}/bulk/resume'),
+        headers: headers,
+        body: jsonEncode({'habitIds': habitIds}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['modifiedCount'] ?? 0;
+      }
+      return 0;
+    } catch (e) {
+      debugPrint('Error bulk resuming: $e');
+      return 0;
+    }
+  }
+
+  // Get habits with reminders
+  Future<List<Habit>> getHabitsWithReminders() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('${ApiConfig.habits}/reminders'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final habitsJson = data['habits'] as List;
+        return habitsJson.map((json) => Habit.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error getting habits with reminders: $e');
+      return [];
+    }
+  }
+
+  // Get completions for date range
+  Future<Map<String, dynamic>?> getCompletionsRange(
+    String startDate,
+    String endDate,
+  ) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse(
+          '${ApiConfig.habits}/completions/range?startDate=$startDate&endDate=$endDate',
+        ),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting completions range: $e');
+      return null;
+    }
+  }
+
+  // Get monthly stats
+  Future<Map<String, dynamic>?> getMonthlyStats(int year, int month) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('${ApiConfig.habits}/stats/monthly?year=$year&month=$month'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting monthly stats: $e');
+      return null;
+    }
+  }
+
   // Toggle day
   Future<Habit?> toggleDay(String habitId, DateTime date) async {
     try {
