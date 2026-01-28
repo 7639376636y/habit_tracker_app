@@ -379,48 +379,64 @@ class HabitGrid extends StatelessWidget {
                 ),
               ),
             ),
-            // Name
+            // Name (clickable to show actions)
             SizedBox(
               width: habitNameWidth,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      habit.name,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: isPaused
-                            ? const Color(0xFF92400E)
-                            : const Color(0xFF1F2937),
-                        fontStyle: isPaused
-                            ? FontStyle.italic
-                            : FontStyle.normal,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {
+                    if (habit is Habit) {
+                      showHabitActionsSheet(context, habit);
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            habit.name,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: isPaused
+                                  ? const Color(0xFF92400E)
+                                  : const Color(0xFF1F2937),
+                              fontStyle: isPaused
+                                  ? FontStyle.italic
+                                  : FontStyle.normal,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isPaused)
+                          Container(
+                            margin: const EdgeInsets.only(left: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFFF59E0B,
+                              ).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'Paused',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFD97706),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                  if (isPaused)
-                    Container(
-                      margin: const EdgeInsets.only(left: 4),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'Paused',
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFD97706),
-                        ),
-                      ),
-                    ),
-                ],
+                ),
               ),
             ),
             // Goal
@@ -893,172 +909,237 @@ class _MobileHabitCard extends StatelessWidget {
         ? (completedCount / goalDays).clamp(0.0, 1.0)
         : 0.0;
     final habitColor = getWeekColor(index);
+    final isPaused = habit is Habit && habit.isPaused;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: habitColor.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with gradient accent
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  habitColor.withValues(alpha: 0.08),
-                  habitColor.withValues(alpha: 0.02),
-                ],
-              ),
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(16),
-              ),
+    return GestureDetector(
+      onTap: () {
+        if (habit is Habit) {
+          showHabitActionsSheet(context, habit);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: isPaused ? const Color(0xFFFEF3C7) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: isPaused
+              ? Border.all(
+                  color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                  width: 1.5,
+                )
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: habitColor.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-            child: Row(
-              children: [
-                // Habit index badge
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [habitColor, habitColor.withValues(alpha: 0.8)],
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: habitColor.withValues(alpha: 0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      '${index + 1}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with gradient accent
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    habitColor.withValues(alpha: 0.08),
+                    habitColor.withValues(alpha: 0.02),
+                  ],
                 ),
-                const SizedBox(width: 14),
-                // Habit name and stats
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        habit.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E293B),
-                          letterSpacing: -0.3,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  // Habit index badge
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [habitColor, habitColor.withValues(alpha: 0.8)],
                       ),
-                      const SizedBox(height: 4),
-                      Row(
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: habitColor.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${index + 1}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  // Habit name and stats (clickable to show actions)
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        if (habit is Habit) {
+                          showHabitActionsSheet(context, habit);
+                        }
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildStatChip(
-                            icon: Icons.flag_rounded,
-                            label: '$goalDays',
-                            color: const Color(0xFF6366F1),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  habit.name,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: isPaused
+                                        ? const Color(0xFF92400E)
+                                        : const Color(0xFF1E293B),
+                                    letterSpacing: -0.3,
+                                    fontStyle: isPaused
+                                        ? FontStyle.italic
+                                        : FontStyle.normal,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (isPaused)
+                                Container(
+                                  margin: const EdgeInsets.only(left: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFFF59E0B,
+                                    ).withValues(alpha: 0.2),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.pause_circle_filled_rounded,
+                                        size: 12,
+                                        color: Color(0xFFD97706),
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Paused',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFFD97706),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          _buildStatChip(
-                            icon: Icons.check_circle_rounded,
-                            label: '$completedCount',
-                            color: const Color(0xFF10B981),
-                          ),
-                          const SizedBox(width: 8),
-                          _buildStatChip(
-                            icon: Icons.percent_rounded,
-                            label: '${(progress * 100).toInt()}%',
-                            color: progress >= 1.0
-                                ? const Color(0xFF10B981)
-                                : const Color(0xFFF59E0B),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              _buildStatChip(
+                                icon: Icons.flag_rounded,
+                                label: '$goalDays',
+                                color: const Color(0xFF6366F1),
+                              ),
+                              const SizedBox(width: 8),
+                              _buildStatChip(
+                                icon: Icons.check_circle_rounded,
+                                label: '$completedCount',
+                                color: const Color(0xFF10B981),
+                              ),
+                              const SizedBox(width: 8),
+                              _buildStatChip(
+                                icon: Icons.percent_rounded,
+                                label: '${(progress * 100).toInt()}%',
+                                color: progress >= 1.0
+                                    ? const Color(0xFF10B981)
+                                    : const Color(0xFFF59E0B),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-                // Progress ring
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox(
-                        width: 44,
-                        height: 44,
-                        child: CircularProgressIndicator(
-                          value: progress,
-                          strokeWidth: 4,
-                          backgroundColor: const Color(0xFFE2E8F0),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            progress >= 1.0
-                                ? const Color(0xFF10B981)
-                                : habitColor,
+                  // Progress ring
+                  SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: CircularProgressIndicator(
+                            value: progress,
+                            strokeWidth: 4,
+                            backgroundColor: const Color(0xFFE2E8F0),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              progress >= 1.0
+                                  ? const Color(0xFF10B981)
+                                  : habitColor,
+                            ),
                           ),
                         ),
-                      ),
-                      if (progress >= 1.0)
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF10B981),
-                            shape: BoxShape.circle,
+                        if (progress >= 1.0)
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF10B981),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.check_rounded,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          )
+                        else
+                          Text(
+                            '$completedCount',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: habitColor,
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.check_rounded,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        )
-                      else
-                        Text(
-                          '$completedCount',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: habitColor,
-                          ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          // Single week display using selectedWeekIndex
-          _buildWeekContent(),
-        ],
+            // Single week display using selectedWeekIndex
+            _buildWeekContent(),
+          ],
+        ),
       ),
     );
   }

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
+import '../main.dart';
 import '../models/habit.dart';
 import '../providers/habit_provider.dart';
+import 'add_habit_dialog.dart';
 
 /// Helper function to parse color from string
 Color _parseColor(String colorStr) {
@@ -320,245 +323,20 @@ class HabitActionsSheet extends StatelessWidget {
 
   void _editHabit(BuildContext context) {
     Navigator.pop(context);
-    _showEditDialog(context);
-  }
-
-  void _showEditDialog(BuildContext context) {
-    final nameController = TextEditingController(text: habit.name);
-    final goalController = TextEditingController(
-      text: habit.goalDays.toString(),
-    );
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        margin: EdgeInsets.only(top: MediaQuery.of(context).padding.top + 50),
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF3B82F6), Color(0xFF6366F1)],
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(
-                      Icons.edit_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Edit Habit',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Update your habit details',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 28),
-              const Text(
-                'Habit Name',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF475569),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  hintText: 'e.g., Exercise, Read, Meditate',
-                  hintStyle: TextStyle(color: Colors.grey.shade400),
-                  prefixIcon: Icon(
-                    Icons.edit_rounded,
-                    color: Colors.grey.shade400,
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF1F5F9),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF6366F1),
-                      width: 2,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Goal (days per month)',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF475569),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: goalController,
-                decoration: InputDecoration(
-                  hintText: 'Number of days',
-                  hintStyle: TextStyle(color: Colors.grey.shade400),
-                  prefixIcon: Icon(
-                    Icons.flag_rounded,
-                    color: Colors.grey.shade400,
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF1F5F9),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF6366F1),
-                      width: 2,
-                    ),
-                  ),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 28),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: BorderSide(color: Colors.grey.shade300),
-                        ),
-                      ),
-                      child: const Text(
-                        'Cancel',
-                        style: TextStyle(
-                          color: Color(0xFF64748B),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF3B82F6), Color(0xFF6366F1)],
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          final name = nameController.text.trim();
-                          final goal =
-                              int.tryParse(goalController.text) ??
-                              habit.goalDays;
-                          if (name.isNotEmpty) {
-                            context.read<HabitProvider>().updateHabit(
-                              habit.id,
-                              name,
-                              goal,
-                            );
-                            Navigator.pop(context);
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: const Text(
-                          'Save Changes',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    // Use the same dialog as Add Habit, but in edit mode
+    showAddHabitDialog(context, editHabit: habit);
   }
 
   Future<void> _pauseHabit(BuildContext context) async {
     Navigator.pop(context);
     await context.read<HabitProvider>().pauseHabit(habit.id);
     if (context.mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${habit.name} paused'),
           backgroundColor: const Color(0xFFF59E0B),
-          action: SnackBarAction(
-            label: 'Undo',
-            textColor: Colors.white,
-            onPressed: () =>
-                context.read<HabitProvider>().resumeHabit(habit.id),
-          ),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
@@ -568,10 +346,12 @@ class HabitActionsSheet extends StatelessWidget {
     Navigator.pop(context);
     await context.read<HabitProvider>().resumeHabit(habit.id);
     if (context.mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${habit.name} resumed'),
           backgroundColor: const Color(0xFF10B981),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
@@ -584,19 +364,23 @@ class HabitActionsSheet extends StatelessWidget {
         habit.id,
       );
       if (context.mounted && duplicated != null) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('${duplicated.name} created'),
             backgroundColor: const Color(0xFF8B5CF6),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
       if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to duplicate: ${e.toString()}'),
             backgroundColor: const Color(0xFFEF4444),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -742,10 +526,12 @@ class HabitActionsSheet extends StatelessWidget {
                             enabled: false,
                           );
                           Navigator.pop(context);
+                          ScaffoldMessenger.of(context).clearSnackBars();
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Reminder disabled'),
                               backgroundColor: Color(0xFF64748B),
+                              duration: Duration(seconds: 3),
                             ),
                           );
                         },
@@ -786,12 +572,14 @@ class HabitActionsSheet extends StatelessWidget {
                             time: timeStr,
                           );
                           Navigator.pop(context);
+                          ScaffoldMessenger.of(context).clearSnackBars();
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
                                 'Reminder set for ${selectedTime.format(context)}',
                               ),
                               backgroundColor: const Color(0xFF6366F1),
+                              duration: const Duration(seconds: 3),
                             ),
                           );
                         },
@@ -827,19 +615,25 @@ class HabitActionsSheet extends StatelessWidget {
     Navigator.pop(context);
     await context.read<HabitProvider>().archiveHabit(habit.id);
     if (context.mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${habit.name} archived'),
           backgroundColor: const Color(0xFF64748B),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
   }
 
   Future<void> _deleteHabit(BuildContext context) async {
+    final provider = context.read<HabitProvider>();
+    final habitName = habit.name;
+    final habitId = habit.id;
+
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
@@ -849,15 +643,15 @@ class HabitActionsSheet extends StatelessWidget {
           ],
         ),
         content: Text(
-          'Are you sure you want to delete "${habit.name}"? It will be moved to trash and can be restored within 30 days.',
+          'Are you sure you want to delete "$habitName"? It will be moved to trash and can be restored within 30 days.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
               foregroundColor: Colors.white,
@@ -868,22 +662,40 @@ class HabitActionsSheet extends StatelessWidget {
       ),
     );
 
-    if (confirmed == true && context.mounted) {
-      Navigator.pop(context);
-      await context.read<HabitProvider>().removeHabit(habit.id);
+    if (confirmed == true) {
+      // Pop the bottom sheet first
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        Navigator.pop(context);
+      }
+
+      // Perform delete
+      await provider.removeHabit(habitId);
+
+      // Show snackbar with undo action, but auto-dismiss after 3 seconds
+      ScaffoldMessengerState? messengerState =
+          rootScaffoldMessengerKey.currentState;
+      if (messengerState != null) {
+        messengerState.showSnackBar(
           SnackBar(
-            content: Text('${habit.name} moved to trash'),
+            content: Text('$habitName deleted'),
             backgroundColor: const Color(0xFFEF4444),
+            duration: const Duration(
+              seconds: 10,
+            ), // Set longer to ensure action is clickable
             action: SnackBarAction(
-              label: 'Undo',
+              label: 'UNDO',
               textColor: Colors.white,
-              onPressed: () =>
-                  context.read<HabitProvider>().restoreFromTrash(habit.id),
+              onPressed: () {
+                provider.restoreFromTrash(habitId);
+              },
             ),
           ),
         );
+
+        // Auto-dismiss after 3 seconds if not already dismissed
+        Future.delayed(const Duration(seconds: 3), () {
+          rootScaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+        });
       }
     }
   }

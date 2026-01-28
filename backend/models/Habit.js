@@ -11,6 +11,7 @@ const HABIT_CATEGORIES = {
   SOCIAL: "social",
   CREATIVITY: "creativity",
   CUSTOM: "custom",
+  OTHER: "other",
 };
 
 // Frequency types

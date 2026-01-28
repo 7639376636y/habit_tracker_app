@@ -5,6 +5,10 @@ import 'providers/auth_provider.dart';
 import 'screens/habit_tracker_screen.dart';
 import 'screens/signin_screen.dart';
 
+// Global key for ScaffoldMessenger to show snackbars from anywhere
+final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
+
 void main() {
   runApp(const MyApp());
 }
@@ -22,6 +26,7 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Habit Tracker',
         debugShowCheckedModeBanner: false,
+        scaffoldMessengerKey: rootScaffoldMessengerKey,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.purple),
           useMaterial3: true,

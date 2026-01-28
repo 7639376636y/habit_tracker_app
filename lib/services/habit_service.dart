@@ -55,6 +55,8 @@ class HabitService {
     String? category,
     String? color,
     String? icon,
+    bool reminderEnabled = false,
+    String? reminderTime,
   }) async {
     try {
       final headers = await _getHeaders();
@@ -65,6 +67,8 @@ class HabitService {
         if (category != null) 'category': category,
         if (color != null) 'color': color,
         if (icon != null) 'icon': icon,
+        'reminderEnabled': reminderEnabled,
+        if (reminderTime != null) 'reminderTime': reminderTime,
       };
 
       debugPrint('Creating habit: $body');

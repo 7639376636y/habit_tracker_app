@@ -8,6 +8,7 @@ enum HabitCategory {
   social,
   finance,
   creativity,
+  custom,
   other,
 }
 

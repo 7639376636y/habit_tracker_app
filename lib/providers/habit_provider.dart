@@ -456,6 +456,8 @@ class HabitProvider extends ChangeNotifier {
     HabitCategory? category,
     String? color,
     String? icon,
+    bool reminderEnabled = false,
+    String? reminderTime,
   }) async {
     // Check limits first
     if (!_limits.canCreate) {
@@ -467,9 +469,11 @@ class HabitProvider extends ChangeNotifier {
       name,
       goalDays,
       description: description,
-      category: category?.name.toUpperCase(),
+      category: category?.name.toLowerCase(),
       color: color,
       icon: icon,
+      reminderEnabled: reminderEnabled,
+      reminderTime: reminderTime,
     );
 
     if (result != null) {
