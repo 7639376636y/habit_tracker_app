@@ -1,17 +1,143 @@
+/// Habit categories for organization
+enum HabitCategory {
+  health,
+  fitness,
+  productivity,
+  mindfulness,
+  learning,
+  social,
+  finance,
+  creativity,
+  other,
+}
+
+/// Frequency type for habit tracking
+enum FrequencyType { daily, weekly, specificDays }
+
+/// Streak information for a habit
+class HabitStreak {
+  final int current;
+  final int longest;
+  final DateTime? lastCompletedDate;
+
+  HabitStreak({this.current = 0, this.longest = 0, this.lastCompletedDate});
+
+  factory HabitStreak.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return HabitStreak();
+    return HabitStreak(
+      current: json['current'] ?? 0,
+      longest: json['longest'] ?? 0,
+      lastCompletedDate: json['lastCompletedDate'] != null
+          ? DateTime.parse(json['lastCompletedDate'])
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'current': current,
+    'longest': longest,
+    'lastCompletedDate': lastCompletedDate?.toIso8601String(),
+  };
+}
+
+/// Frequency settings for a habit
+class HabitFrequency {
+  final FrequencyType type;
+  final List<int> daysOfWeek;
+  final int timesPerWeek;
+
+  HabitFrequency({
+    this.type = FrequencyType.daily,
+    this.daysOfWeek = const [],
+    this.timesPerWeek = 7,
+  });
+
+  factory HabitFrequency.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return HabitFrequency();
+    return HabitFrequency(
+      type: FrequencyType.values.firstWhere(
+        (e) => e.name == json['type'],
+        orElse: () => FrequencyType.daily,
+      ),
+      daysOfWeek: List<int>.from(json['daysOfWeek'] ?? []),
+      timesPerWeek: json['timesPerWeek'] ?? 7,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'type': type.name,
+    'daysOfWeek': daysOfWeek,
+    'timesPerWeek': timesPerWeek,
+  };
+}
+
+/// Reminder settings for a habit
+class HabitReminder {
+  final bool enabled;
+  final String time;
+  final List<int> days;
+
+  HabitReminder({
+    this.enabled = false,
+    this.time = '09:00',
+    this.days = const [],
+  });
+
+  factory HabitReminder.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return HabitReminder();
+    return HabitReminder(
+      enabled: json['enabled'] ?? false,
+      time: json['time'] ?? '09:00',
+      days: List<int>.from(json['days'] ?? []),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'enabled': enabled,
+    'time': time,
+    'days': days,
+  };
+}
+
 class Habit {
-  final String? mongoId; // MongoDB ObjectId
-  final int id; // Local int id for UI
+  final String? mongoId;
+  final int id;
   final String name;
+  final String description;
+  final HabitCategory category;
+  final String color;
+  final String icon;
   final int goalDays;
   final Map<DateTime, bool> completedDays;
+  final HabitFrequency frequency;
+  final HabitReminder reminder;
+  final HabitStreak streak;
+  final bool isArchived;
+  final int sortOrder;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   Habit({
     this.mongoId,
     required this.id,
     required this.name,
+    this.description = '',
+    this.category = HabitCategory.other,
+    this.color = '#4CAF50',
+    this.icon = '',
     required this.goalDays,
     Map<DateTime, bool>? completedDays,
-  }) : completedDays = completedDays ?? {};
+    HabitFrequency? frequency,
+    HabitReminder? reminder,
+    HabitStreak? streak,
+    this.isArchived = false,
+    this.sortOrder = 0,
+    this.createdAt,
+    this.updatedAt,
+  }) : completedDays = completedDays ?? {},
+       frequency = frequency ?? HabitFrequency(),
+       reminder = reminder ?? HabitReminder(),
+       streak = streak ?? HabitStreak();
 
   int get completedCount => completedDays.values.where((v) => v).length;
   int get leftCount => goalDays - completedCount;
@@ -27,15 +153,37 @@ class Habit {
     String? mongoId,
     int? id,
     String? name,
+    String? description,
+    HabitCategory? category,
+    String? color,
+    String? icon,
     int? goalDays,
     Map<DateTime, bool>? completedDays,
+    HabitFrequency? frequency,
+    HabitReminder? reminder,
+    HabitStreak? streak,
+    bool? isArchived,
+    int? sortOrder,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) {
     return Habit(
       mongoId: mongoId ?? this.mongoId,
       id: id ?? this.id,
       name: name ?? this.name,
+      description: description ?? this.description,
+      category: category ?? this.category,
+      color: color ?? this.color,
+      icon: icon ?? this.icon,
       goalDays: goalDays ?? this.goalDays,
       completedDays: completedDays ?? Map.from(this.completedDays),
+      frequency: frequency ?? this.frequency,
+      reminder: reminder ?? this.reminder,
+      streak: streak ?? this.streak,
+      isArchived: isArchived ?? this.isArchived,
+      sortOrder: sortOrder ?? this.sortOrder,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -47,7 +195,19 @@ class Habit {
     return copyWith(completedDays: newCompletedDays);
   }
 
-  // JSON serialization for API
+  /// Parse category from string
+  static HabitCategory _parseCategory(String? category) {
+    if (category == null) return HabitCategory.other;
+    // Map "custom" from backend to "other" in Flutter
+    final normalizedCategory = category.toLowerCase() == 'custom'
+        ? 'other'
+        : category.toLowerCase();
+    return HabitCategory.values.firstWhere(
+      (e) => e.name == normalizedCategory,
+      orElse: () => HabitCategory.other,
+    );
+  }
+
   factory Habit.fromJson(Map<String, dynamic> json) {
     final completedDaysJson =
         json['completedDays'] as Map<String, dynamic>? ?? {};
@@ -68,9 +228,24 @@ class Habit {
     return Habit(
       mongoId: json['id']?.toString(),
       id: json['id'].hashCode,
-      name: json['name'],
-      goalDays: json['goalDays'],
+      name: json['name'] ?? '',
+      description: json['description'] ?? '',
+      category: _parseCategory(json['category']),
+      color: json['color'] ?? '#4CAF50',
+      icon: json['icon'] ?? '',
+      goalDays: json['goalDays'] ?? 30,
       completedDays: completedDays,
+      frequency: HabitFrequency.fromJson(json['frequency']),
+      reminder: HabitReminder.fromJson(json['reminder']),
+      streak: HabitStreak.fromJson(json['streak']),
+      isArchived: json['isArchived'] ?? false,
+      sortOrder: json['sortOrder'] ?? 0,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'])
+          : null,
     );
   }
 
@@ -82,11 +257,24 @@ class Habit {
       completedDaysMap[dateString] = value;
     });
 
+    // Map "other" to "custom" for backend compatibility
+    final categoryName = category == HabitCategory.other
+        ? 'custom'
+        : category.name;
+
     return {
       if (mongoId != null) 'id': mongoId,
       'name': name,
+      'description': description,
+      'category': categoryName,
+      'color': color,
+      'icon': icon,
       'goalDays': goalDays,
       'completedDays': completedDaysMap,
+      'frequency': frequency.toJson(),
+      'reminder': reminder.toJson(),
+      'isArchived': isArchived,
+      'sortOrder': sortOrder,
     };
   }
 }

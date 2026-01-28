@@ -3,6 +3,8 @@ import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../models/habit.dart';
+import '../models/layout_settings.dart';
+import '../providers/habit_provider.dart';
 import 'auth_service.dart';
 
 class HabitService {
@@ -16,8 +18,8 @@ class HabitService {
     };
   }
 
-  // Get all habits
-  Future<List<Habit>> getHabits() async {
+  // Get all habits with limits
+  Future<Map<String, dynamic>> getHabitsWithLimits() async {
     try {
       final headers = await _getHeaders();
       final response = await http.get(
@@ -28,49 +30,108 @@ class HabitService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final habitsJson = data['habits'] as List;
-        return habitsJson.map((json) => _habitFromJson(json)).toList();
+        final habits = habitsJson.map((json) => Habit.fromJson(json)).toList();
+        final limits = HabitLimits.fromJson(data['limits']);
+        return {'habits': habits, 'limits': limits};
       }
-      return [];
+      return {'habits': <Habit>[], 'limits': HabitLimits()};
     } catch (e) {
       debugPrint('Error getting habits: $e');
-      return [];
+      return {'habits': <Habit>[], 'limits': HabitLimits()};
     }
   }
 
-  // Create habit
-  Future<Habit?> createHabit(String name, int goalDays) async {
+  // Get all habits (legacy)
+  Future<List<Habit>> getHabits() async {
+    final result = await getHabitsWithLimits();
+    return result['habits'] as List<Habit>;
+  }
+
+  // Create habit with all fields
+  Future<Map<String, dynamic>?> createHabit(
+    String name,
+    int goalDays, {
+    String? description,
+    String? category,
+    String? color,
+    String? icon,
+  }) async {
     try {
       final headers = await _getHeaders();
+      final body = {
+        'name': name,
+        'goalDays': goalDays,
+        if (description != null) 'description': description,
+        if (category != null) 'category': category,
+        if (color != null) 'color': color,
+        if (icon != null) 'icon': icon,
+      };
+
+      debugPrint('Creating habit: $body');
+      debugPrint('API URL: ${ApiConfig.habits}');
+
       final response = await http.post(
         Uri.parse(ApiConfig.habits),
         headers: headers,
-        body: jsonEncode({'name': name, 'goalDays': goalDays}),
+        body: jsonEncode(body),
       );
+
+      debugPrint('Response status: ${response.statusCode}');
+      debugPrint('Response body: ${response.body}');
 
       if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        return _habitFromJson(data['habit']);
+        return {
+          'habit': Habit.fromJson(data['habit']),
+          'limits': HabitLimits.fromJson(data['limits']),
+        };
+      } else if (response.statusCode == 403) {
+        // Habit limit reached
+        final data = jsonDecode(response.body);
+        throw Exception(data['message']);
+      } else {
+        // Log other errors
+        debugPrint(
+          'Failed to create habit: ${response.statusCode} - ${response.body}',
+        );
       }
       return null;
     } catch (e) {
       debugPrint('Error creating habit: $e');
-      return null;
+      rethrow;
     }
   }
 
-  // Update habit
-  Future<Habit?> updateHabit(String habitId, String name, int goalDays) async {
+  // Update habit with all fields
+  Future<Habit?> updateHabit(
+    String habitId,
+    String name,
+    int goalDays, {
+    String? description,
+    String? category,
+    String? color,
+    String? icon,
+  }) async {
     try {
       final headers = await _getHeaders();
+      final body = {
+        'name': name,
+        'goalDays': goalDays,
+        if (description != null) 'description': description,
+        if (category != null) 'category': category,
+        if (color != null) 'color': color,
+        if (icon != null) 'icon': icon,
+      };
+
       final response = await http.put(
         Uri.parse(ApiConfig.updateHabit(habitId)),
         headers: headers,
-        body: jsonEncode({'name': name, 'goalDays': goalDays}),
+        body: jsonEncode(body),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return _habitFromJson(data['habit']);
+        return Habit.fromJson(data['habit']);
       }
       return null;
     } catch (e) {
@@ -79,19 +140,76 @@ class HabitService {
     }
   }
 
-  // Delete habit
-  Future<bool> deleteHabit(String habitId) async {
+  // Delete habit (soft delete)
+  Future<bool> deleteHabit(String habitId, {bool permanent = false}) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.delete(
-        Uri.parse(ApiConfig.deleteHabit(habitId)),
-        headers: headers,
-      );
+      final url = permanent
+          ? '${ApiConfig.deleteHabit(habitId)}?permanent=true'
+          : ApiConfig.deleteHabit(habitId);
+
+      final response = await http.delete(Uri.parse(url), headers: headers);
 
       return response.statusCode == 200;
     } catch (e) {
       debugPrint('Error deleting habit: $e');
       return false;
+    }
+  }
+
+  // Archive habit
+  Future<bool> archiveHabit(String habitId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('${ApiConfig.habits}/$habitId/archive'),
+        headers: headers,
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Error archiving habit: $e');
+      return false;
+    }
+  }
+
+  // Restore archived habit
+  Future<Habit?> restoreHabit(String habitId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('${ApiConfig.habits}/$habitId/restore'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return Habit.fromJson(data['habit']);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error restoring habit: $e');
+      return null;
+    }
+  }
+
+  // Get archived habits
+  Future<List<Habit>> getArchivedHabits() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('${ApiConfig.habits}/archived'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final habitsJson = data['habits'] as List;
+        return habitsJson.map((json) => Habit.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error getting archived habits: $e');
+      return [];
     }
   }
 
@@ -109,7 +227,7 @@ class HabitService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return _habitFromJson(data['habit']);
+        return Habit.fromJson(data['habit']);
       }
       return null;
     } catch (e) {
@@ -118,11 +236,48 @@ class HabitService {
     }
   }
 
-  // Sync all habits
-  Future<List<Habit>> syncHabits(List<Habit> habits) async {
+  // Reorder habits
+  Future<bool> reorderHabits(List<String> habitIds) async {
     try {
       final headers = await _getHeaders();
-      final habitsJson = habits.map((h) => _habitToJson(h)).toList();
+      final response = await http.put(
+        Uri.parse('${ApiConfig.habits}/reorder'),
+        headers: headers,
+        body: jsonEncode({'habitIds': habitIds}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('Error reordering habits: $e');
+      return false;
+    }
+  }
+
+  // Add note to habit
+  Future<Habit?> addNote(String habitId, DateTime date, String content) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.post(
+        Uri.parse('${ApiConfig.habits}/$habitId/note'),
+        headers: headers,
+        body: jsonEncode({'date': date.toIso8601String(), 'content': content}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return Habit.fromJson(data['habit']);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error adding note: $e');
+      return null;
+    }
+  }
+
+  // Sync all habits
+  Future<Map<String, dynamic>> syncHabits(List<Habit> habits) async {
+    try {
+      final headers = await _getHeaders();
+      final habitsJson = habits.map((h) => h.toJson()).toList();
 
       final response = await http.post(
         Uri.parse(ApiConfig.syncHabits),
@@ -133,59 +288,86 @@ class HabitService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final resultHabits = data['habits'] as List;
-        return resultHabits.map((json) => _habitFromJson(json)).toList();
+        return {
+          'habits': resultHabits.map((json) => Habit.fromJson(json)).toList(),
+          'limits': HabitLimits.fromJson(data['limits']),
+        };
       }
-      return habits;
+      return {'habits': habits, 'limits': HabitLimits()};
     } catch (e) {
       debugPrint('Error syncing habits: $e');
-      return habits;
+      return {'habits': habits, 'limits': HabitLimits()};
+    }
+  }
+
+  // Get habit categories
+  Future<Map<String, dynamic>?> getCategories() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('${ApiConfig.habits}/categories'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting categories: $e');
+      return null;
+    }
+  }
+
+  // ========== Layout Settings Methods ==========
+
+  // Get layout settings from backend
+  Future<LayoutSettings?> getLayoutSettings() async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse(ApiConfig.layoutSettings),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['layoutSettings'] != null) {
+          return LayoutSettings.fromJson(data['layoutSettings']);
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting layout settings: $e');
+      return null;
+    }
+  }
+
+  // Save layout settings to backend
+  Future<LayoutSettings?> saveLayoutSettings(LayoutSettings settings) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.put(
+        Uri.parse(ApiConfig.layoutSettings),
+        headers: headers,
+        body: jsonEncode(settings.toJson()),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['layoutSettings'] != null) {
+          return LayoutSettings.fromJson(data['layoutSettings']);
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error saving layout settings: $e');
+      return null;
     }
   }
 
   // Helper to format date
   String _formatDate(DateTime date) {
     return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-  }
-
-  // Convert JSON to Habit
-  Habit _habitFromJson(Map<String, dynamic> json) {
-    final completedDaysJson =
-        json['completedDays'] as Map<String, dynamic>? ?? {};
-    final completedDays = <DateTime, bool>{};
-
-    completedDaysJson.forEach((key, value) {
-      final parts = key.split('-');
-      if (parts.length == 3) {
-        final date = DateTime(
-          int.parse(parts[0]),
-          int.parse(parts[1]),
-          int.parse(parts[2]),
-        );
-        completedDays[date] = value as bool;
-      }
-    });
-
-    final mongoId = json['id']?.toString() ?? '';
-    return Habit(
-      mongoId: mongoId,
-      id: mongoId.hashCode, // Convert MongoDB ObjectId to int
-      name: json['name'],
-      goalDays: json['goalDays'],
-      completedDays: completedDays,
-    );
-  }
-
-  // Convert Habit to JSON
-  Map<String, dynamic> _habitToJson(Habit habit) {
-    final completedDays = <String, bool>{};
-    habit.completedDays.forEach((date, value) {
-      completedDays[_formatDate(date)] = value;
-    });
-
-    return {
-      'name': habit.name,
-      'goalDays': habit.goalDays,
-      'completedDays': completedDays,
-    };
   }
 }

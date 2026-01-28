@@ -3,6 +3,31 @@ import '../models/habit.dart';
 import '../models/layout_settings.dart';
 import '../services/habit_service.dart';
 
+/// Habit limits based on subscription plan
+class HabitLimits {
+  final bool canCreate;
+  final int current;
+  final int max;
+  final String plan;
+
+  HabitLimits({
+    this.canCreate = true,
+    this.current = 0,
+    this.max = 5,
+    this.plan = 'free',
+  });
+
+  factory HabitLimits.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return HabitLimits();
+    return HabitLimits(
+      canCreate: json['canCreate'] ?? true,
+      current: json['current'] ?? 0,
+      max: json['max'] ?? 5,
+      plan: json['plan'] ?? 'free',
+    );
+  }
+}
+
 class HabitProvider extends ChangeNotifier {
   final HabitService _habitService = HabitService();
 
@@ -12,6 +37,7 @@ class HabitProvider extends ChangeNotifier {
   LayoutSettings _layoutSettings = LayoutSettings.defaultSettings();
   bool _isLoading = false;
   bool _isInitialized = false;
+  HabitLimits _limits = HabitLimits();
 
   HabitProvider();
 
@@ -21,91 +47,86 @@ class HabitProvider extends ChangeNotifier {
   LayoutSettings get layoutSettings => _layoutSettings;
   bool get isLoading => _isLoading;
   bool get isInitialized => _isInitialized;
+  HabitLimits get limits => _limits;
 
-  // Initialize and load habits from backend
+  // Initialize and load habits + layout settings from backend
   Future<void> initialize() async {
     if (_isInitialized) return;
+    await Future.wait([_loadHabitsFromBackend(), loadLayoutSettings()]);
+    _isInitialized = true;
+  }
 
+  // Force refresh habits from backend (for sync across devices)
+  Future<void> refreshHabits() async {
+    await _loadHabitsFromBackend();
+  }
+
+  // Force refresh all data from backend
+  Future<void> refreshAll() async {
+    await Future.wait([_loadHabitsFromBackend(), loadLayoutSettings()]);
+  }
+
+  // Internal method to load habits from backend
+  Future<void> _loadHabitsFromBackend() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      _habits = await _habitService.getHabits();
-      if (_habits.isEmpty) {
-        // If no habits from backend, create default habits
-        await _createDefaultHabits();
-      }
-      _isInitialized = true;
+      final result = await _habitService.getHabitsWithLimits();
+      _habits = result['habits'] as List<Habit>;
+      _limits = result['limits'] as HabitLimits;
     } catch (e) {
-      debugPrint('Error initializing habits: $e');
-      _initializeDefaultHabitsLocal();
+      debugPrint('Error loading habits from backend: $e');
+      // Don't clear habits on error - keep existing data
     }
 
     _isLoading = false;
     notifyListeners();
   }
 
-  // Create default habits on backend
-  Future<void> _createDefaultHabits() async {
-    final defaultHabits = [
-      {'name': 'Prayer x5', 'goalDays': 30},
-      {'name': 'Morning food take Fruits', 'goalDays': 30},
-      {'name': 'Nuts & Dry Fruits (Limits)', 'goalDays': 30},
-      {'name': 'Running', 'goalDays': 30},
-      {'name': '10000+ Steps', 'goalDays': 30},
-      {'name': 'Chicken without Oil', 'goalDays': 30},
-      {'name': '11 PM Sleep', 'goalDays': 30},
-      {'name': 'Wake-up 7 AM', 'goalDays': 30},
-      {'name': 'Any Hard Workout', 'goalDays': 30},
-      {'name': 'No - Sugar', 'goalDays': 30},
-      {'name': 'No - Junk food / Fast Food', 'goalDays': 30},
-      {'name': 'No - Snacks', 'goalDays': 30},
-      {'name': 'No - M&M', 'goalDays': 26},
-    ];
+  // Check if user has any habits
+  bool get hasHabits => _habits.isNotEmpty;
 
-    for (final habitData in defaultHabits) {
-      final habit = await _habitService.createHabit(
-        habitData['name'] as String,
-        habitData['goalDays'] as int,
-      );
-      if (habit != null) {
-        _habits.add(habit);
-      }
-    }
-  }
-
-  // Fallback to local habits if backend fails
-  void _initializeDefaultHabitsLocal() {
-    _habits = [
-      Habit(id: 1, name: 'Prayer x5', goalDays: 30),
-      Habit(id: 2, name: 'Morning food take Fruits', goalDays: 30),
-      Habit(id: 3, name: 'Nuts & Dry Fruits (Limits)', goalDays: 30),
-      Habit(id: 4, name: 'Running', goalDays: 30),
-      Habit(id: 5, name: '10000+ Steps', goalDays: 30),
-      Habit(id: 6, name: 'Chicken without Oil', goalDays: 30),
-      Habit(id: 7, name: '11 PM Sleep', goalDays: 30),
-      Habit(id: 8, name: 'Wake-up 7 AM', goalDays: 30),
-      Habit(id: 9, name: 'Any Hard Workout', goalDays: 30),
-      Habit(id: 10, name: 'No - Sugar', goalDays: 30),
-      Habit(id: 11, name: 'No - Junk food / Fast Food', goalDays: 30),
-      Habit(id: 12, name: 'No - Snacks', goalDays: 30),
-      Habit(id: 13, name: 'No - M&M', goalDays: 26),
-    ];
-    _isInitialized = true;
-  }
+  // Check if user can create more habits
+  bool get canCreateHabit => _limits.canCreate;
 
   // Reset when user logs out
   void reset() {
     _habits = [];
     _isInitialized = false;
+    _limits = HabitLimits();
     _layoutSettings = LayoutSettings.defaultSettings();
     notifyListeners();
   }
 
-  // Layout Settings Methods
+  // ========== Layout Settings Methods ==========
+
+  // Load layout settings from backend
+  Future<void> loadLayoutSettings() async {
+    try {
+      final settings = await _habitService.getLayoutSettings();
+      if (settings != null) {
+        _layoutSettings = settings;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error loading layout settings: $e');
+    }
+  }
+
+  // Save layout settings to backend
+  Future<void> _saveLayoutSettings() async {
+    try {
+      await _habitService.saveLayoutSettings(_layoutSettings);
+    } catch (e) {
+      debugPrint('Error saving layout settings: $e');
+    }
+  }
+
   void updateLayoutSettings(LayoutSettings settings) {
     _layoutSettings = settings;
     notifyListeners();
+    _saveLayoutSettings();
   }
 
   void toggleSectionVisibility(LayoutSection section) {
@@ -115,6 +136,7 @@ class HabitProvider extends ChangeNotifier {
     newVisibility[section] = !(newVisibility[section] ?? true);
     _layoutSettings = _layoutSettings.copyWith(visibleSections: newVisibility);
     notifyListeners();
+    _saveLayoutSettings();
   }
 
   void reorderSections(int oldIndex, int newIndex) {
@@ -124,21 +146,25 @@ class HabitProvider extends ChangeNotifier {
     newOrder.insert(newIndex, item);
     _layoutSettings = _layoutSettings.copyWith(sectionOrder: newOrder);
     notifyListeners();
+    _saveLayoutSettings();
   }
 
   void setDesktopColumns(int columns) {
     _layoutSettings = _layoutSettings.copyWith(columnsDesktop: columns);
     notifyListeners();
+    _saveLayoutSettings();
   }
 
   void setTabletColumns(int columns) {
     _layoutSettings = _layoutSettings.copyWith(columnsTablet: columns);
     notifyListeners();
+    _saveLayoutSettings();
   }
 
-  void resetLayoutSettings() {
+  Future<void> resetLayoutSettings() async {
     _layoutSettings = LayoutSettings.defaultSettings();
     notifyListeners();
+    await _saveLayoutSettings();
   }
 
   void setYear(int year) {
@@ -174,19 +200,55 @@ class HabitProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> addHabit(String name, int goalDays) async {
-    // Create on backend
-    final habit = await _habitService.createHabit(name, goalDays);
-    if (habit != null) {
-      _habits.add(habit);
-    } else {
-      // Fallback to local
-      final newId = _habits.isEmpty
-          ? 1
-          : _habits.map((h) => h.id).reduce((a, b) => a > b ? a : b) + 1;
-      _habits.add(Habit(id: newId, name: name, goalDays: goalDays));
+  Future<void> addHabit(
+    String name,
+    int goalDays, {
+    String? description,
+    HabitCategory? category,
+    String? color,
+    String? icon,
+  }) async {
+    // Check limits first
+    if (!_limits.canCreate) {
+      throw Exception('Habit limit reached. Upgrade to create more habits.');
     }
-    notifyListeners();
+
+    // Create on backend - NO local fallback to ensure data is synced
+    final result = await _habitService.createHabit(
+      name,
+      goalDays,
+      description: description,
+      category: category?.name.toUpperCase(),
+      color: color,
+      icon: icon,
+    );
+
+    if (result != null) {
+      _habits.add(result['habit'] as Habit);
+      if (result['limits'] != null) {
+        _limits = result['limits'] as HabitLimits;
+      }
+      notifyListeners();
+    } else {
+      // Throw error instead of local fallback - ensures data is always in DB
+      throw Exception('Failed to create habit. Please check your connection.');
+    }
+  }
+
+  Future<void> archiveHabit(int habitId) async {
+    final habit = _habits.firstWhere(
+      (h) => h.id == habitId,
+      orElse: () => Habit(id: -1, name: '', goalDays: 0),
+    );
+    if (habit.id == -1) return;
+
+    if (habit.mongoId != null) {
+      final success = await _habitService.archiveHabit(habit.mongoId!);
+      if (success) {
+        _habits.removeWhere((h) => h.id == habitId);
+        notifyListeners();
+      }
+    }
   }
 
   Future<void> removeHabit(int habitId) async {

@@ -34,6 +34,61 @@ class LayoutSettings {
     );
   }
 
+  /// Parse LayoutSection from string
+  static LayoutSection? _parseSection(String? name) {
+    if (name == null) return null;
+    try {
+      return LayoutSection.values.firstWhere(
+        (e) => e.name.toLowerCase() == name.toLowerCase(),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Create from JSON (backend response)
+  factory LayoutSettings.fromJson(Map<String, dynamic> json) {
+    // Parse section order
+    final sectionOrderJson = json['sectionOrder'] as List<dynamic>? ?? [];
+    final sectionOrder = sectionOrderJson
+        .map((s) => _parseSection(s.toString()))
+        .whereType<LayoutSection>()
+        .toList();
+
+    // If empty, use defaults
+    final finalSectionOrder = sectionOrder.isNotEmpty
+        ? sectionOrder
+        : LayoutSection.values.toList();
+
+    // Parse visible sections
+    final visibleSectionsJson =
+        json['visibleSections'] as Map<String, dynamic>? ?? {};
+    final visibleSections = <LayoutSection, bool>{};
+    for (var section in LayoutSection.values) {
+      final key = section.name;
+      visibleSections[section] = visibleSectionsJson[key] ?? true;
+    }
+
+    return LayoutSettings(
+      sectionOrder: finalSectionOrder,
+      visibleSections: visibleSections,
+      columnsDesktop: json['columnsDesktop'] ?? 3,
+      columnsTablet: json['columnsTablet'] ?? 2,
+    );
+  }
+
+  /// Convert to JSON for backend
+  Map<String, dynamic> toJson() {
+    return {
+      'sectionOrder': sectionOrder.map((s) => s.name).toList(),
+      'visibleSections': {
+        for (var entry in visibleSections.entries) entry.key.name: entry.value,
+      },
+      'columnsDesktop': columnsDesktop,
+      'columnsTablet': columnsTablet,
+    };
+  }
+
   LayoutSettings copyWith({
     List<LayoutSection>? sectionOrder,
     Map<LayoutSection, bool>? visibleSections,

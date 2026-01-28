@@ -11,6 +11,7 @@ import '../widgets/monthly_progress_pie.dart';
 import '../widgets/top_habits_widget.dart';
 import '../widgets/overall_progress_widget.dart';
 import '../widgets/layout_customizer.dart';
+import '../widgets/empty_habits_view.dart';
 
 class HabitTrackerScreen extends StatefulWidget {
   const HabitTrackerScreen({super.key});
@@ -81,110 +82,163 @@ class _HabitTrackerScreenState extends State<HabitTrackerScreen> {
       backgroundColor: const Color(0xFFF8FAFC),
       body: Consumer<HabitProvider>(
         builder: (context, provider, child) {
-          return CustomScrollView(
-            slivers: [
-              // Clean App Bar
-              SliverAppBar(
-                expandedHeight: isDesktop ? 100 : 120,
-                floating: false,
-                pinned: true,
-                elevation: 0,
-                backgroundColor: Colors.white,
-                surfaceTintColor: Colors.transparent,
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
-                    color: Colors.white,
-                    child: SafeArea(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isDesktop ? 32 : 20,
-                          vertical: 16,
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF6366F1),
-                                    Color(0xFF8B5CF6),
+          return RefreshIndicator(
+            onRefresh: () => provider.refreshHabits(),
+            child: CustomScrollView(
+              slivers: [
+                // Clean App Bar
+                SliverAppBar(
+                  expandedHeight: isDesktop ? 100 : 120,
+                  floating: false,
+                  pinned: true,
+                  elevation: 0,
+                  backgroundColor: Colors.white,
+                  surfaceTintColor: Colors.transparent,
+                  flexibleSpace: FlexibleSpaceBar(
+                    background: Container(
+                      color: Colors.white,
+                      child: SafeArea(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isDesktop ? 32 : 20,
+                            vertical: 16,
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF6366F1),
+                                      Color(0xFF8B5CF6),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(14),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFF6366F1,
+                                      ).withValues(alpha: 0.3),
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 4),
+                                    ),
                                   ],
                                 ),
-                                borderRadius: BorderRadius.circular(14),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(
-                                      0xFF6366F1,
-                                    ).withValues(alpha: 0.3),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
+                                child: const Icon(
+                                  Icons.track_changes_rounded,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.track_changes_rounded,
-                                color: Colors.white,
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Text(
-                                    'Habit Tracker',
-                                    style: TextStyle(
-                                      color: Color(0xFF1E293B),
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: -0.5,
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Text(
+                                      'Habit Tracker',
+                                      style: TextStyle(
+                                        color: Color(0xFF1E293B),
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: -0.5,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${provider.monthName} ${provider.selectedYear}',
-                                    style: const TextStyle(
-                                      color: Color(0xFF64748B),
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '${provider.monthName} ${provider.selectedYear}',
+                                      style: const TextStyle(
+                                        color: Color(0xFF64748B),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                            _buildLayoutButton(context),
-                            const SizedBox(width: 12),
-                            _buildAddButton(context, provider, isDesktop),
-                            const SizedBox(width: 12),
-                            _buildLogoutButton(context),
-                          ],
+                              _buildSyncButton(context, provider),
+                              const SizedBox(width: 8),
+                              _buildLayoutButton(context),
+                              const SizedBox(width: 12),
+                              _buildAddButton(context, provider, isDesktop),
+                              const SizedBox(width: 12),
+                              _buildLogoutButton(context),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              // Content
-              SliverPadding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: isDesktop ? 32 : 16,
-                  vertical: 16,
-                ),
-                sliver: SliverToBoxAdapter(
-                  child: _buildCustomLayout(
-                    context,
-                    provider,
-                    isDesktop,
-                    isTablet,
+                // Content
+                SliverPadding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isDesktop ? 32 : 16,
+                    vertical: 16,
+                  ),
+                  sliver: SliverToBoxAdapter(
+                    child: provider.isLoading
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(48.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        : provider.hasHabits
+                        ? _buildCustomLayout(
+                            context,
+                            provider,
+                            isDesktop,
+                            isTablet,
+                          )
+                        : EmptyHabitsView(
+                            onAddHabit: () =>
+                                _showAddHabitDialog(context, provider),
+                          ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildSyncButton(BuildContext context, HabitProvider provider) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: provider.isLoading
+            ? null
+            : () async {
+                await provider.refreshHabits();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Habits synced from server'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: provider.isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.sync, color: Color(0xFF64748B), size: 20),
+        ),
       ),
     );
   }
