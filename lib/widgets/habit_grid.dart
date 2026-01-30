@@ -599,11 +599,15 @@ class _MobileHabitsSection extends StatefulWidget {
 
 class _MobileHabitsSectionState extends State<_MobileHabitsSection> {
   late int _selectedWeekIndex;
+  late int _previousYear;
+  late int _previousMonth;
 
   @override
   void initState() {
     super.initState();
     _selectedWeekIndex = _findCurrentWeekIndex();
+    _previousYear = widget.provider.selectedYear;
+    _previousMonth = widget.provider.selectedMonth;
   }
 
   int _findCurrentWeekIndex() {
@@ -628,6 +632,20 @@ class _MobileHabitsSectionState extends State<_MobileHabitsSection> {
 
   @override
   Widget build(BuildContext context) {
+    // Check if month/year has changed and reset week index if needed
+    final currentMonth = widget.provider.selectedMonth;
+    final currentYear = widget.provider.selectedYear;
+
+    if (currentMonth != _previousMonth || currentYear != _previousYear) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _selectedWeekIndex = 0;
+        });
+      });
+      _previousMonth = currentMonth;
+      _previousYear = currentYear;
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
