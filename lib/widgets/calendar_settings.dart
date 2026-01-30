@@ -12,12 +12,12 @@ class CalendarSettings extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
@@ -28,38 +28,52 @@ class CalendarSettings extends StatelessWidget {
               // Header
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [Color(0xFF10B981), Color(0xFF059669)],
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                   ),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                 ),
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(10),
+                        color: Colors.white.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
                         Icons.calendar_month_rounded,
                         color: Colors.white,
-                        size: 18,
+                        size: 20,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 14),
                     const Expanded(
-                      child: Text(
-                        'Calendar',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Calendar Settings',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 18,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Select month and year',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w400,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -67,7 +81,7 @@ class CalendarSettings extends StatelessWidget {
               ),
               // Content
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
                     _buildDropdownField(
@@ -85,7 +99,7 @@ class CalendarSettings extends StatelessWidget {
                         if (value != null) provider.setYear(value);
                       },
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     _buildDropdownField(
                       label: 'Month',
                       value: provider.selectedMonth,
@@ -129,19 +143,19 @@ class CalendarSettings extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF64748B),
+            color: Color(0xFF1E293B),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          height: 52,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
           ),
           child: DropdownButton<T>(
             value: value,
@@ -149,11 +163,11 @@ class CalendarSettings extends StatelessWidget {
             underline: const SizedBox(),
             icon: const Icon(
               Icons.keyboard_arrow_down_rounded,
-              color: Color(0xFF10B981),
-              size: 22,
+              color: Color(0xFF6366F1),
+              size: 24,
             ),
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: FontWeight.w500,
               color: Color(0xFF1E293B),
             ),

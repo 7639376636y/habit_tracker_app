@@ -27,7 +27,13 @@ class LayoutSettings {
     return LayoutSettings(
       sectionOrder: LayoutSection.values.toList(),
       visibleSections: {
-        for (var section in LayoutSection.values) section: true,
+        LayoutSection.progressChart: true,
+        LayoutSection.monthlyProgress: true,
+        LayoutSection.habitGrid: true,
+        LayoutSection.overview: true,
+        LayoutSection.calendar: false, // Hide calendar by default
+        LayoutSection.overallProgress: true,
+        LayoutSection.topHabits: true,
       },
       columnsDesktop: 3,
       columnsTablet: 2,
@@ -63,10 +69,14 @@ class LayoutSettings {
     // Parse visible sections
     final visibleSectionsJson =
         json['visibleSections'] as Map<String, dynamic>? ?? {};
+    final defaultSettings = LayoutSettings.defaultSettings();
     final visibleSections = <LayoutSection, bool>{};
     for (var section in LayoutSection.values) {
       final key = section.name;
-      visibleSections[section] = visibleSectionsJson[key] ?? true;
+      visibleSections[section] =
+          visibleSectionsJson[key] ??
+          defaultSettings.visibleSections[section] ??
+          true;
     }
 
     return LayoutSettings(
@@ -104,6 +114,10 @@ class LayoutSettings {
   }
 
   bool isSectionVisible(LayoutSection section) {
+    // Always hide calendar regardless of settings
+    if (section == LayoutSection.calendar) {
+      return false;
+    }
     return visibleSections[section] ?? true;
   }
 
