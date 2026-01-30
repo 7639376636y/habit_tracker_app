@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/habit_provider.dart';
 import '../models/layout_settings.dart';
-import '../widgets/calendar_settings.dart';
 import '../widgets/monthly_progress_pie.dart';
 import '../widgets/progress_chart.dart';
 import '../widgets/top_habits_widget.dart';
 import '../widgets/overall_progress_widget.dart';
+import '../utils/month_year_picker.dart';
 
 class ReportsPage extends StatefulWidget {
   const ReportsPage({super.key});
@@ -40,7 +40,7 @@ class _ReportsPageState extends State<ReportsPage> {
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: () => _showMonthYearPicker(context),
+                    onTap: () => showMonthYearPicker(context),
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -106,8 +106,6 @@ class _ReportsPageState extends State<ReportsPage> {
                       children: [
                         // Month and Calendar Selection
                         const SizedBox(height: 8),
-                        const CalendarSettings(),
-                        const SizedBox(height: 24),
 
                         // Weekly Overview (5 weeks)
                         if (provider.layoutSettings.isSectionVisible(
@@ -204,19 +202,19 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   Widget _buildWeeklyOverview(HabitProvider provider) {
-    // Generate data for last 5 weeks
-    final weeks = List.generate(5, (index) {
-      final weekNum = index + 1;
-      final percentage = (10 + (index * 15)).clamp(0, 100);
-      final done = (2 + index * 2);
-      final left = (48 - done);
+    // Generate data from actual weeks in the selected month
+    final weeksInMonth = provider.weeksInMonth;
+    final weeks = weeksInMonth.asMap().entries.map((entry) {
+      final weekNum = entry.key + 1;
+      final weekDates = entry.value;
+      final weekData = provider.weekProgress(weekDates);
       return {
         'week': 'W$weekNum',
-        'percentage': percentage,
-        'done': done,
-        'left': left,
+        'percentage': (weekData['percentage'] as double).round(),
+        'done': weekData['completed'] as int,
+        'left': weekData['left'] as int,
       };
-    });
+    }).toList();
 
     final colors = [
       const Color(0xFF6366F1), // Purple
@@ -443,96 +441,5 @@ class _ReportsPageState extends State<ReportsPage> {
         const SizedBox(height: 32),
       ],
     );
-  }
-
-  void _showMonthYearPicker(BuildContext context) {
-    final provider = context.read<HabitProvider>();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Month and Year'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Year selector
-              const Text('Year', style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      provider.setYear(provider.selectedYear - 1);
-                    },
-                    icon: const Icon(Icons.chevron_left),
-                  ),
-                  Text(
-                    '${provider.selectedYear}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      provider.setYear(provider.selectedYear + 1);
-                    },
-                    icon: const Icon(Icons.chevron_right),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Month selector
-              const Text(
-                'Month',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: List.generate(12, (index) {
-                  final month = index + 1;
-                  return FilterChip(
-                    label: Text(_getMonthName(month)),
-                    selected: provider.selectedMonth == month,
-                    onSelected: (selected) {
-                      if (selected) {
-                        provider.setMonth(month);
-                      }
-                    },
-                  );
-                }),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Done'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getMonthName(int month) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return months[month - 1];
   }
 }

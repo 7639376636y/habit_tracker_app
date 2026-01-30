@@ -4,6 +4,7 @@ import '../providers/habit_provider.dart';
 import '../widgets/habit_grid.dart';
 import '../widgets/empty_habits_view.dart';
 import '../widgets/add_habit_dialog.dart';
+import '../utils/month_year_picker.dart';
 
 class HabitsPage extends StatefulWidget {
   const HabitsPage({super.key});
@@ -33,41 +34,51 @@ class _HabitsPageState extends State<HabitsPage> {
             surfaceTintColor: Colors.transparent,
             actions: [
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.only(right: 16),
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: provider.isLoading
-                        ? null
-                        : () async {
-                            await provider.refreshHabits();
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Habits synced'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          },
+                    onTap: () => showMonthYearPicker(context),
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
-                      child: provider.isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(
-                              Icons.sync,
-                              color: Color(0xFF64748B),
-                              size: 20,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(
+                              0xFF6366F1,
+                            ).withValues(alpha: 0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.calendar_month_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${provider.monthName} ${provider.selectedYear}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
                             ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
