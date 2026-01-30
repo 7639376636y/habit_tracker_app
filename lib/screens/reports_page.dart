@@ -6,6 +6,7 @@ import '../widgets/monthly_progress_pie.dart';
 import '../widgets/progress_chart.dart';
 import '../widgets/top_habits_widget.dart';
 import '../widgets/overall_progress_widget.dart';
+import '../widgets/layout_customizer.dart';
 import '../utils/month_year_picker.dart';
 
 class ReportsPage extends StatefulWidget {
@@ -39,49 +40,74 @@ class _ReportsPageState extends State<ReportsPage> {
                 padding: const EdgeInsets.only(right: 16),
                 child: Material(
                   color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => showMonthYearPicker(context),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                        ),
+                  child: Row(
+                    children: [
+                      // Customization button
+                      InkWell(
+                        onTap: () => _showLayoutCustomizer(context),
                         borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(
-                              0xFF6366F1,
-                            ).withValues(alpha: 0.2),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        ],
+                          child: const Icon(
+                            Icons.tune_rounded,
+                            color: Color(0xFF64748B),
+                            size: 20,
+                          ),
+                        ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.calendar_month_rounded,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${provider.monthName} ${provider.selectedYear}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                      const SizedBox(width: 12),
+                      // Month/Year picker
+                      InkWell(
+                        onTap: () => showMonthYearPicker(context),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Consumer<HabitProvider>(
+                          builder: (context, provider, _) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFF6366F1,
+                                  ).withValues(alpha: 0.2),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.calendar_month_rounded,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${provider.monthName} ${provider.selectedYear}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ),
@@ -103,96 +129,7 @@ class _ReportsPageState extends State<ReportsPage> {
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Month and Calendar Selection
-                        const SizedBox(height: 8),
-
-                        // Weekly Overview (5 weeks)
-                        if (provider.layoutSettings.isSectionVisible(
-                          LayoutSection.overview,
-                        ))
-                          _buildWeeklyOverview(provider),
-
-                        // Overall Progress
-                        const Text(
-                          'Progress Overview',
-                          style: TextStyle(
-                            color: Color(0xFF1E293B),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const OverallProgressWidget(),
-                        const SizedBox(height: 24),
-
-                        // Monthly Progress
-                        const Text(
-                          'Monthly Progress',
-                          style: TextStyle(
-                            color: Color(0xFF1E293B),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          padding: const EdgeInsets.all(16),
-                          child: const MonthlyProgressPie(),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Progress Chart
-                        const Text(
-                          'Completion Trend',
-                          style: TextStyle(
-                            color: Color(0xFF1E293B),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.05),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          padding: const EdgeInsets.all(16),
-                          child: const ProgressChart(),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Top Habits
-                        const Text(
-                          'Top Performing Habits',
-                          style: TextStyle(
-                            color: Color(0xFF1E293B),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const TopHabitsWidget(),
-                        const SizedBox(height: 24),
-                      ],
+                      children: _buildSectionsList(provider),
                     ),
                   ),
           ),
@@ -440,6 +377,147 @@ class _ReportsPageState extends State<ReportsPage> {
         ),
         const SizedBox(height: 32),
       ],
+    );
+  }
+
+  List<Widget> _buildSectionsList(HabitProvider provider) {
+    final sections = <Widget>[const SizedBox(height: 8)];
+    final sectionOrder = provider.layoutSettings.sectionOrder;
+
+    for (final section in sectionOrder) {
+      if (!provider.layoutSettings.isSectionVisible(section)) {
+        continue;
+      }
+
+      switch (section) {
+        case LayoutSection.overview:
+          sections.add(_buildWeeklyOverview(provider));
+          break;
+        case LayoutSection.overallProgress:
+          sections.add(
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Progress Overview',
+                  style: TextStyle(
+                    color: Color(0xFF1E293B),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 12),
+                OverallProgressWidget(),
+                SizedBox(height: 24),
+              ],
+            ),
+          );
+          break;
+        case LayoutSection.monthlyProgress:
+          sections.add(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Monthly Progress',
+                  style: TextStyle(
+                    color: Color(0xFF1E293B),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  child: const MonthlyProgressPie(),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          );
+          break;
+        case LayoutSection.progressChart:
+          sections.add(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Completion Trend',
+                  style: TextStyle(
+                    color: Color(0xFF1E293B),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  child: const ProgressChart(),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          );
+          break;
+        case LayoutSection.topHabits:
+          sections.add(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Top Performing Habits',
+                  style: TextStyle(
+                    color: Color(0xFF1E293B),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const TopHabitsWidget(),
+                const SizedBox(height: 24),
+              ],
+            ),
+          );
+          break;
+        default:
+          break;
+      }
+    }
+
+    return sections;
+  }
+
+  void _showLayoutCustomizer(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        builder: (context, scrollController) =>
+            LayoutCustomizer(scrollController: scrollController),
+      ),
     );
   }
 }
