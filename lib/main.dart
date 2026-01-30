@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/habit_provider.dart';
 import 'providers/auth_provider.dart';
-import 'screens/habit_tracker_screen.dart';
+import 'screens/home_shell.dart';
 import 'screens/signin_screen.dart';
 
 // Global key for ScaffoldMessenger to show snackbars from anywhere
@@ -103,6 +103,6 @@ class _HomeWrapperState extends State<HomeWrapper> {
       );
     }
 
-    return const HabitTrackerScreen();
+    return const HomeShell();
   }
 }
